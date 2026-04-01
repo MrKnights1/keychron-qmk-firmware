@@ -16,6 +16,7 @@
 
 #include QMK_KEYBOARD_H
 #include "keychron_common.h"
+#include "via.h"
 #include <stdlib.h>
 
 enum layers {
@@ -34,6 +35,8 @@ enum custom_keycodes {
 
 static bool spam_enabled = false;
 
+enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
+
 /*
  * Phase 1 (initial hold): key held down for HOLD_MS so wheels reach full lock
  * Phase 2 (tap cycle):    hold for TAP_HOLD_MS, release for GAP_MS, repeat
@@ -50,13 +53,14 @@ static bool spam_enabled = false;
 
 typedef struct {
     bool     active;
-    uint8_t  phase;       // 0 = initial hold, 1 = tap hold, 2 = tap gap
+    uint8_t  phase;        // 0 = initial hold, 1 = tap hold, 2 = tap gap
     uint16_t timer;
     uint16_t keycode;
     uint16_t hold_ms;
     uint16_t tap_hold_ms;
     uint16_t gap_base;
     uint16_t gap_jitter;
+    uint16_t current_gap;  // pre-computed gap for current cycle
 } spam_key_t;
 
 static spam_key_t spam_keys[] = {
@@ -68,6 +72,7 @@ static spam_key_t spam_keys[] = {
 #define SPAM_KEY_COUNT (sizeof(spam_keys) / sizeof(spam_keys[0]))
 
 static uint16_t randomized_gap(spam_key_t *key) {
+    if (key->gap_jitter == 0) return key->gap_base;
     return key->gap_base + (rand() % key->gap_jitter);
 }
 
@@ -149,7 +154,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 spam_enabled = !spam_enabled;
                 if (!spam_enabled) {
                     for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
-                        spam_keys[i].active = false;
+                        if (spam_keys[i].active) {
+                            spam_key_release(&spam_keys[i]);
+                        }
                     }
                 }
             }
@@ -157,29 +164,111 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
         case SPAM_A:
             if (record->event.pressed) {
-                spam_key_press(&spam_keys[0]);
+                spam_key_press(&spam_keys[SPAM_IDX_A]);
             } else {
-                spam_key_release(&spam_keys[0]);
+                spam_key_release(&spam_keys[SPAM_IDX_A]);
             }
             return false;
 
         case SPAM_D:
             if (record->event.pressed) {
-                spam_key_press(&spam_keys[1]);
+                spam_key_press(&spam_keys[SPAM_IDX_D]);
             } else {
-                spam_key_release(&spam_keys[1]);
+                spam_key_release(&spam_keys[SPAM_IDX_D]);
             }
             return false;
 
         case SPAM_S:
             if (record->event.pressed) {
-                spam_key_press(&spam_keys[2]);
+                spam_key_press(&spam_keys[SPAM_IDX_S]);
             } else {
-                spam_key_release(&spam_keys[2]);
+                spam_key_release(&spam_keys[SPAM_IDX_S]);
             }
             return false;
     }
     return true;
+}
+
+/* ── VIA custom value interface for web tuning ── */
+#define SPAM_CHANNEL_ID  0x44
+
+enum spam_value_id {
+    SPAM_VAL_STEER_HOLD = 1,
+    SPAM_VAL_STEER_TAP_HOLD,
+    SPAM_VAL_STEER_GAP_BASE,
+    SPAM_VAL_STEER_GAP_JITTER,
+    SPAM_VAL_BRAKE_HOLD,
+    SPAM_VAL_BRAKE_TAP_HOLD,
+    SPAM_VAL_BRAKE_GAP_BASE,
+    SPAM_VAL_BRAKE_GAP_JITTER,
+};
+
+static uint16_t *spam_value_ptr(uint8_t value_id) {
+    switch (value_id) {
+        case SPAM_VAL_STEER_HOLD:       return &spam_keys[SPAM_IDX_A].hold_ms;
+        case SPAM_VAL_STEER_TAP_HOLD:   return &spam_keys[SPAM_IDX_A].tap_hold_ms;
+        case SPAM_VAL_STEER_GAP_BASE:   return &spam_keys[SPAM_IDX_A].gap_base;
+        case SPAM_VAL_STEER_GAP_JITTER: return &spam_keys[SPAM_IDX_A].gap_jitter;
+        case SPAM_VAL_BRAKE_HOLD:       return &spam_keys[SPAM_IDX_S].hold_ms;
+        case SPAM_VAL_BRAKE_TAP_HOLD:   return &spam_keys[SPAM_IDX_S].tap_hold_ms;
+        case SPAM_VAL_BRAKE_GAP_BASE:   return &spam_keys[SPAM_IDX_S].gap_base;
+        case SPAM_VAL_BRAKE_GAP_JITTER: return &spam_keys[SPAM_IDX_S].gap_jitter;
+        default: return NULL;
+    }
+}
+
+static void spam_sync_steer(void) {
+    // A and D share the same steering values
+    spam_keys[SPAM_IDX_D].hold_ms     = spam_keys[SPAM_IDX_A].hold_ms;
+    spam_keys[SPAM_IDX_D].tap_hold_ms = spam_keys[SPAM_IDX_A].tap_hold_ms;
+    spam_keys[SPAM_IDX_D].gap_base    = spam_keys[SPAM_IDX_A].gap_base;
+    spam_keys[SPAM_IDX_D].gap_jitter  = spam_keys[SPAM_IDX_A].gap_jitter;
+}
+
+void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
+    uint8_t *command_id = &data[0];
+    uint8_t  channel_id = data[1];
+    uint8_t  value_id   = data[2];
+
+    if (channel_id != SPAM_CHANNEL_ID) {
+        *command_id = id_unhandled;
+        return;
+    }
+
+    uint16_t *ptr = spam_value_ptr(value_id);
+    if (!ptr) {
+        *command_id = id_unhandled;
+        return;
+    }
+
+    switch (*command_id) {
+        case id_custom_get_value:
+            data[3] = (*ptr >> 8) & 0xFF;
+            data[4] = *ptr & 0xFF;
+            break;
+        case id_custom_set_value: {
+            uint16_t val = ((uint16_t)data[3] << 8) | data[4];
+            // Clamp to sane ranges
+            if (value_id == SPAM_VAL_STEER_GAP_JITTER || value_id == SPAM_VAL_BRAKE_GAP_JITTER) {
+                if (val == 0) val = 1;
+                if (val > 500) val = 500;
+            } else if (value_id == SPAM_VAL_STEER_TAP_HOLD || value_id == SPAM_VAL_BRAKE_TAP_HOLD) {
+                if (val < 5) val = 5;
+                if (val > 1000) val = 1000;
+            } else {
+                if (val < 5) val = 5;
+                if (val > 2000) val = 2000;
+            }
+            *ptr = val;
+            if (value_id >= SPAM_VAL_STEER_HOLD && value_id <= SPAM_VAL_STEER_GAP_JITTER) {
+                spam_sync_steer();
+            }
+            break;
+        }
+        case id_custom_save:
+            // Values are RAM-only; no EEPROM save needed
+            break;
+    }
 }
 
 void matrix_scan_user(void) {
@@ -191,24 +280,26 @@ void matrix_scan_user(void) {
         switch (key->phase) {
             case 0: // Initial hold: key held down, wheels turning to full lock
                 if (timer_elapsed(key->timer) > key->hold_ms) {
-                    unregister_code(key->keycode);  // brief release
-                    key->phase = 2;                 // go to gap
-                    key->timer = timer_read();
+                    unregister_code(key->keycode);
+                    key->phase       = 2;
+                    key->timer       = timer_read();
+                    key->current_gap = randomized_gap(key);
                 }
                 break;
 
             case 1: // Tap hold: key is pressed down during a tap
                 if (timer_elapsed(key->timer) > key->tap_hold_ms) {
-                    unregister_code(key->keycode);  // release
-                    key->phase = 2;                 // go to gap
-                    key->timer = timer_read();
+                    unregister_code(key->keycode);
+                    key->phase       = 2;
+                    key->timer       = timer_read();
+                    key->current_gap = randomized_gap(key);
                 }
                 break;
 
             case 2: // Gap: key is released briefly between taps
-                if (timer_elapsed(key->timer) > randomized_gap(key)) {
-                    register_code(key->keycode);    // press again
-                    key->phase = 1;                 // go to tap hold
+                if (timer_elapsed(key->timer) > key->current_gap) {
+                    register_code(key->keycode);
+                    key->phase = 1;
                     key->timer = timer_read();
                 }
                 break;

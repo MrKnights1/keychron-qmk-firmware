@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spam Macro Tuner — Q3 Max</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+  h1 { font-size: 1.4rem; margin-bottom: .3rem; color: #fff; }
+  .subtitle { font-size: .85rem; color: #888; margin-bottom: 1.5rem; }
+  #connect-btn { background: #4a9eff; color: #fff; border: none; padding: .7rem 2rem; border-radius: 8px; font-size: 1rem; cursor: pointer; margin-bottom: 1.5rem; transition: background .2s; }
+  #connect-btn:hover { background: #3a8eef; }
+  #connect-btn:disabled { background: #555; cursor: not-allowed; }
+  #status { font-size: .85rem; margin-bottom: 1.5rem; padding: .4rem .8rem; border-radius: 4px; }
+  .connected { background: #1b4332; color: #95d5b2; }
+  .disconnected { background: #442222; color: #f88; }
+  .panels { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+  .panel { background: #16213e; border-radius: 12px; padding: 1.5rem; width: 340px; }
+  .panel h2 { font-size: 1.1rem; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #333; }
+  .panel.steer h2 { color: #4a9eff; border-color: #4a9eff33; }
+  .panel.brake h2 { color: #ff6b6b; border-color: #ff6b6b33; }
+  .field { margin-bottom: 1.2rem; }
+  .field label { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: .4rem; color: #aaa; }
+  .field label span { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: #4a9eff; cursor: pointer; height: 6px; }
+  .brake input[type="range"] { accent-color: #ff6b6b; }
+  .field .hint { font-size: .75rem; color: #666; margin-top: .2rem; }
+  .actions { display: flex; gap: .8rem; margin-top: 1.5rem; justify-content: center; }
+  .actions button { padding: .5rem 1.2rem; border-radius: 6px; border: 1px solid #444; background: #1a1a2e; color: #ccc; cursor: pointer; font-size: .85rem; transition: all .2s; }
+  .actions button:hover:not(:disabled) { background: #2a2a4e; border-color: #666; }
+  .actions button:disabled { opacity: .5; cursor: not-allowed; }
+  .actions button.primary { background: #4a9eff; border-color: #4a9eff; color: #fff; }
+  .actions button.primary:hover:not(:disabled) { background: #3a8eef; }
+</style>
+</head>
+<body>
+
+<h1>Spam Macro Tuner</h1>
+<p class="subtitle">Keychron Q3 Max — FiveM Steering Config<br>Connect via USB cable. Bluetooth and 2.4GHz are not supported.</p>
+
+<button id="connect-btn">Connect Keyboard</button>
+<div id="status" role="status" aria-live="polite" class="disconnected">Not connected</div>
+
+<div class="panels">
+  <div class="panel steer">
+    <h2>Steering (A / D)</h2>
+    <div class="field">
+      <label for="steer-hold">Initial Hold <span id="v-steer-hold">200</span> ms</label>
+      <input type="range" id="steer-hold" min="50" max="500" step="10" value="200" aria-describedby="hint-steer-hold">
+      <div class="hint" id="hint-steer-hold">How long key is held to reach full wheel lock</div>
+    </div>
+    <div class="field">
+      <label for="steer-tap">Tap Hold <span id="v-steer-tap">80</span> ms</label>
+      <input type="range" id="steer-tap" min="10" max="200" step="5" value="80" aria-describedby="hint-steer-tap">
+      <div class="hint" id="hint-steer-tap">How long each tap holds the key down</div>
+    </div>
+    <div class="field">
+      <label for="steer-gap">Gap Base <span id="v-steer-gap">15</span> ms</label>
+      <input type="range" id="steer-gap" min="5" max="100" step="5" value="15" aria-describedby="hint-steer-gap">
+      <div class="hint" id="hint-steer-gap">Minimum release time between taps</div>
+    </div>
+    <div class="field">
+      <label for="steer-jitter">Gap Jitter <span id="v-steer-jitter">15</span> ms</label>
+      <input type="range" id="steer-jitter" min="1" max="50" step="1" value="15" aria-describedby="hint-steer-jitter">
+      <div class="hint" id="hint-steer-jitter">Random range added to gap (humanization)</div>
+    </div>
+  </div>
+
+  <div class="panel brake">
+    <h2>Braking (S)</h2>
+    <div class="field">
+      <label for="brake-hold">Initial Hold <span id="v-brake-hold">150</span> ms</label>
+      <input type="range" id="brake-hold" min="50" max="500" step="10" value="150" aria-describedby="hint-brake-hold">
+      <div class="hint" id="hint-brake-hold">How long key is held before tapping</div>
+    </div>
+    <div class="field">
+      <label for="brake-tap">Tap Hold <span id="v-brake-tap">60</span> ms</label>
+      <input type="range" id="brake-tap" min="10" max="200" step="5" value="60" aria-describedby="hint-brake-tap">
+      <div class="hint" id="hint-brake-tap">How long each brake tap holds the key down</div>
+    </div>
+    <div class="field">
+      <label for="brake-gap">Gap Base <span id="v-brake-gap">20</span> ms</label>
+      <input type="range" id="brake-gap" min="5" max="100" step="5" value="20" aria-describedby="hint-brake-gap">
+      <div class="hint" id="hint-brake-gap">Minimum release time between brake taps</div>
+    </div>
+    <div class="field">
+      <label for="brake-jitter">Gap Jitter <span id="v-brake-jitter">15</span> ms</label>
+      <input type="range" id="brake-jitter" min="1" max="50" step="1" value="15" aria-describedby="hint-brake-jitter">
+      <div class="hint" id="hint-brake-jitter">Random range added to gap (humanization)</div>
+    </div>
+  </div>
+</div>
+
+<div class="actions">
+  <button id="read-btn">Read from keyboard</button>
+  <button id="send-btn" class="primary">Send to keyboard</button>
+</div>
+
+<script>
+const VIA_USAGE_PAGE = 0xFF60;
+const VIA_USAGE = 0x61;
+const REPORT_LEN = 32;
+
+const CMD_GET = 0x08; // id_custom_get_value
+const CMD_SET = 0x07; // id_custom_set_value
+const CHANNEL = 0x44; // SPAM_CHANNEL_ID (outside QMK's 0-5 range)
+
+// Value IDs matching firmware enum
+const VAL = {
+  'steer-hold':    1,
+  'steer-tap':     2,
+  'steer-gap':     3,
+  'steer-jitter':  4,
+  'brake-hold':    5,
+  'brake-tap':     6,
+  'brake-gap':     7,
+  'brake-jitter':  8,
+};
+
+let device = null;
+let busy = false;
+let statusTimeout = null;
+
+const $ = id => document.getElementById(id);
+
+function setStatus(msg, className, revertMs) {
+  clearTimeout(statusTimeout);
+  $('status').textContent = msg;
+  if (className) $('status').className = className;
+  if (revertMs && device) {
+    statusTimeout = setTimeout(() => {
+      if (device) $('status').textContent = 'Connected: ' + (device.productName || 'Keychron Q3 Max');
+    }, revertMs);
+  }
+}
+
+function setBusy(isBusy) {
+  busy = isBusy;
+  $('read-btn').disabled = isBusy;
+  $('send-btn').disabled = isBusy;
+}
+
+// Check WebHID support
+if (!navigator.hid) {
+  $('connect-btn').disabled = true;
+  setStatus('WebHID not available. Use Chrome or Edge.', 'disconnected');
+}
+
+// Update displayed value when slider moves
+Object.keys(VAL).forEach(key => {
+  const slider = $(key);
+  const display = $('v-' + key);
+  slider.addEventListener('input', () => { display.textContent = slider.value; });
+});
+
+function onDisconnect() {
+  device = null;
+  $('connect-btn').disabled = false;
+  setBusy(false);
+  setStatus('Keyboard disconnected', 'disconnected');
+}
+
+$('connect-btn').addEventListener('click', async () => {
+  try {
+    const devices = await navigator.hid.requestDevice({
+      filters: [{ usagePage: VIA_USAGE_PAGE, usage: VIA_USAGE }]
+    });
+    if (!devices.length) return;
+    device = devices[0];
+    await device.open();
+    setStatus('Connected: ' + (device.productName || 'Keychron Q3 Max'), 'connected');
+    $('connect-btn').disabled = true;
+    device.addEventListener('inputreport', onInputReport);
+    device.addEventListener('disconnect', onDisconnect);
+    await readAll();
+  } catch (e) {
+    setStatus('Error: ' + e.message, 'disconnected');
+  }
+});
+
+let pending = null; // { cmd, channel, valueId, resolve }
+
+function onInputReport(e) {
+  if (!pending) return;
+  const resp = new Uint8Array(e.data.buffer);
+  // Only accept reports matching the in-flight command
+  if (resp[0] === pending.cmd && resp[1] === pending.channel && resp[2] === pending.valueId) {
+    const p = pending;
+    pending = null;
+    p.resolve(resp);
+  }
+  // Discard unsolicited reports (battery notifications, VIA handshakes, etc.)
+}
+
+async function sendReport(cmd, channel, valueId, extraBytes) {
+  if (!device) return null;
+  const buf = new Uint8Array(REPORT_LEN);
+  buf[0] = cmd;
+  buf[1] = channel;
+  buf[2] = valueId;
+  if (extraBytes) { buf[3] = extraBytes[0]; buf[4] = extraBytes[1]; }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pending = null;
+      resolve(null);
+    }, 1000);
+    pending = { cmd, channel, valueId, resolve: (resp) => { clearTimeout(timeout); resolve(resp); } };
+    device.sendReport(0x00, buf).catch((err) => {
+      clearTimeout(timeout);
+      pending = null;
+      reject(err);
+    });
+  });
+}
+
+async function getValue(valueId) {
+  const resp = await sendReport(CMD_GET, CHANNEL, valueId);
+  if (!resp || resp[0] !== CMD_GET) return null;
+  return (resp[3] << 8) | resp[4];
+}
+
+async function setValue(valueId, val) {
+  const resp = await sendReport(CMD_SET, CHANNEL, valueId, [(val >> 8) & 0xFF, val & 0xFF]);
+  if (!resp || resp[0] === 0xFF) throw new Error('Firmware rejected value ' + valueId);
+}
+
+async function readAll() {
+  if (busy) return;
+  setBusy(true);
+  try {
+    for (const [key, vid] of Object.entries(VAL)) {
+      const val = await getValue(vid);
+      if (val !== null) {
+        $(key).value = val;
+        $('v-' + key).textContent = $(key).value;
+      }
+    }
+    setStatus('Values read!', 'connected', 1500);
+  } catch (e) {
+    setStatus('Read error: ' + e.message, 'disconnected');
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function sendAll() {
+  if (busy) return;
+  setBusy(true);
+  try {
+    for (const [key, vid] of Object.entries(VAL)) {
+      await setValue(vid, parseInt($(key).value, 10));
+    }
+    setStatus('Values sent!', 'connected', 1500);
+  } catch (e) {
+    setStatus('Send error: ' + e.message, 'disconnected');
+  } finally {
+    setBusy(false);
+  }
+}
+
+$('read-btn').addEventListener('click', () => { if (device) readAll(); });
+$('send-btn').addEventListener('click', () => { if (device) sendAll(); });
+</script>
+
+</body>
+</html>
