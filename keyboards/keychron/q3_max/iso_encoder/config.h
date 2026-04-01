@@ -43,7 +43,7 @@
 #    define RGB_MATRIX_BRIGHTNESS_TURN_OFF_VAL 32
 
 /* Caps lock indicating led */
-#    define CAPS_LOCK_INDEX 51
+#    define CAPS_LOCK_INDEX 50
 
 #    define RGB_MATRIX_KEYPRESSES
 #    define RGB_MATRIX_FRAMEBUFFER_EFFECTS
