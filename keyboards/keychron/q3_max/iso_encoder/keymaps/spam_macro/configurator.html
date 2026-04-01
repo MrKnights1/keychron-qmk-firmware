@@ -32,6 +32,7 @@
   .actions button:disabled { opacity: .5; cursor: not-allowed; }
   .actions button.primary { background: #4a9eff; border-color: #4a9eff; color: #fff; }
   .actions button.primary:hover:not(:disabled) { background: #3a8eef; }
+  .hidden { display: none; }
 </style>
 </head>
 <body>
@@ -42,7 +43,7 @@
 <button id="connect-btn">Connect Keyboard</button>
 <div id="status" role="status" aria-live="polite" class="disconnected">Not connected</div>
 
-<div class="panels">
+<div class="panels hidden" id="panels">
   <div class="panel steer">
     <h2>Steering (A / D)</h2>
     <div class="field">
@@ -92,7 +93,7 @@
   </div>
 </div>
 
-<div class="actions">
+<div class="actions hidden" id="actions">
   <button id="read-btn">Read from keyboard</button>
   <button id="send-btn" class="primary">Send to keyboard</button>
 </div>
@@ -157,6 +158,8 @@ Object.keys(VAL).forEach(key => {
 function onDisconnect() {
   device = null;
   $('connect-btn').disabled = false;
+  $('panels').classList.add('hidden');
+  $('actions').classList.add('hidden');
   setBusy(false);
   setStatus('Keyboard disconnected', 'disconnected');
 }
@@ -171,6 +174,8 @@ $('connect-btn').addEventListener('click', async () => {
     await device.open();
     setStatus('Connected: ' + (device.productName || 'Keychron Q3 Max'), 'connected');
     $('connect-btn').disabled = true;
+    $('panels').classList.remove('hidden');
+    $('actions').classList.remove('hidden');
     device.addEventListener('inputreport', onInputReport);
     device.addEventListener('disconnect', onDisconnect);
     await readAll();
