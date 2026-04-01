@@ -30,10 +30,11 @@ enum custom_keycodes {
     SPAM_A = NEW_SAFE_RANGE,
     SPAM_D,
     SPAM_S,
-    SPAM_TOGGLE,
 };
 
 static bool spam_enabled = false;
+static uint16_t toggle_row = 3;   // default: G key [3,5]
+static uint16_t toggle_col = 5;
 
 enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
 
@@ -119,12 +120,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LSFT,  KC_NUBS,  KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,             KC_RSFT,            KC_UP,
         KC_LCTL,  KC_LWIN,  KC_LALT,                               KC_SPC,                                  KC_RALT,  KC_RWIN,  MO(WIN_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
 
-    /* WIN_FN: Fn layer — Fn+G toggles spam mode */
+    /* WIN_FN: Fn layer — spam toggle is position-based (configurable via web UI) */
     [WIN_FN] = LAYOUT_iso_88(
         _______,  KC_BRID,  KC_BRIU,  KC_TASK,  KC_FILE,  RGB_VAD,  RGB_VAI,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,  RGB_TOG, _______, _______, RGB_TOG,
         _______,  BT_HST1,  BT_HST2,  BT_HST3,  P2P4G,    _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______, _______, _______, _______,
         RGB_TOG,  RGB_MOD,  RGB_VAI,  RGB_HUI,  RGB_SAI,  RGB_SPI,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______, _______, _______, _______,
-        _______,  RGB_RMOD, RGB_VAD,  RGB_HUD,  RGB_SAD,  SPAM_TOGGLE, _______,  _______,  _______,  _______,  _______,  _______,  _______,
+        _______,  RGB_RMOD, RGB_VAD,  RGB_HUD,  RGB_SAD,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
         _______,  _______,  _______,  _______,  _______,  _______,  BAT_LVL,  NK_TOGG,  _______,  _______,  _______,  _______,            _______,          _______,
         _______,  _______,  _______,                                _______,                                _______,  _______,  _______,  _______, _______, _______, _______)
 };
@@ -148,20 +149,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false;
     }
 
-    switch (keycode) {
-        case SPAM_TOGGLE:
-            if (record->event.pressed) {
-                spam_enabled = !spam_enabled;
-                if (!spam_enabled) {
-                    for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
-                        if (spam_keys[i].active) {
-                            spam_key_release(&spam_keys[i]);
-                        }
+    // Position-based configurable toggle: Fn + configured key
+    if (record->event.key.row == toggle_row
+        && record->event.key.col == toggle_col
+        && layer_state_is(WIN_FN)) {
+        if (record->event.pressed) {
+            spam_enabled = !spam_enabled;
+            if (!spam_enabled) {
+                for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
+                    if (spam_keys[i].active) {
+                        spam_key_release(&spam_keys[i]);
                     }
                 }
             }
-            return false;
+        }
+        return false; // swallow both press and release
+    }
 
+    switch (keycode) {
         case SPAM_A:
             if (record->event.pressed) {
                 spam_key_press(&spam_keys[SPAM_IDX_A]);
@@ -201,6 +206,9 @@ enum spam_value_id {
     SPAM_VAL_BRAKE_TAP_HOLD,
     SPAM_VAL_BRAKE_GAP_BASE,
     SPAM_VAL_BRAKE_GAP_JITTER,
+    SPAM_VAL_TOGGLE_ROW,      // 9
+    SPAM_VAL_TOGGLE_COL,      // 10
+    SPAM_VAL_ENABLED,         // 11
 };
 
 static uint16_t *spam_value_ptr(uint8_t value_id) {
@@ -213,6 +221,8 @@ static uint16_t *spam_value_ptr(uint8_t value_id) {
         case SPAM_VAL_BRAKE_TAP_HOLD:   return &spam_keys[SPAM_IDX_S].tap_hold_ms;
         case SPAM_VAL_BRAKE_GAP_BASE:   return &spam_keys[SPAM_IDX_S].gap_base;
         case SPAM_VAL_BRAKE_GAP_JITTER: return &spam_keys[SPAM_IDX_S].gap_jitter;
+        case SPAM_VAL_TOGGLE_ROW:       return &toggle_row;
+        case SPAM_VAL_TOGGLE_COL:       return &toggle_col;
         default: return NULL;
     }
 }
@@ -232,6 +242,27 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
 
     if (channel_id != SPAM_CHANNEL_ID) {
         *command_id = id_unhandled;
+        return;
+    }
+
+    // Handle spam_enabled separately (bool, not uint16_t)
+    if (value_id == SPAM_VAL_ENABLED) {
+        switch (*command_id) {
+            case id_custom_get_value:
+                data[3] = 0;
+                data[4] = spam_enabled ? 1 : 0;
+                break;
+            case id_custom_set_value:
+                spam_enabled = data[4] != 0;
+                if (!spam_enabled) {
+                    for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
+                        if (spam_keys[i].active) spam_key_release(&spam_keys[i]);
+                    }
+                }
+                break;
+            case id_custom_save:
+                break;
+        }
         return;
     }
 
@@ -255,6 +286,10 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             } else if (value_id == SPAM_VAL_STEER_TAP_HOLD || value_id == SPAM_VAL_BRAKE_TAP_HOLD) {
                 if (val < 5) val = 5;
                 if (val > 1000) val = 1000;
+            } else if (value_id == SPAM_VAL_TOGGLE_ROW) {
+                if (val > 5) val = 5;
+            } else if (value_id == SPAM_VAL_TOGGLE_COL) {
+                if (val > 16) val = 16;
             } else {
                 if (val < 5) val = 5;
                 if (val > 2000) val = 2000;

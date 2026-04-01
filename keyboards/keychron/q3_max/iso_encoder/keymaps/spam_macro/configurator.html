@@ -32,6 +32,12 @@
   .actions button:disabled { opacity: .5; cursor: not-allowed; }
   .actions button.primary { background: #4a9eff; border-color: #4a9eff; color: #fff; }
   .actions button.primary:hover:not(:disabled) { background: #3a8eef; }
+  .panel.toggle h2 { color: #a0e57c; border-color: #a0e57c33; }
+  select { width: 100%; padding: .5rem; background: #1a1a2e; color: #e0e0e0; border: 1px solid #444; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-top: .3rem; }
+  select:focus { border-color: #a0e57c; outline: none; }
+  #spam-state { font-size: 1rem; margin-bottom: 1rem; padding: .5rem 1.2rem; border-radius: 8px; font-weight: 600; text-align: center; }
+  #spam-state.on { background: #1b4332; color: #95d5b2; }
+  #spam-state.off { background: #2a1a1a; color: #888; }
   .hidden { display: none; }
 </style>
 </head>
@@ -42,6 +48,8 @@
 
 <button id="connect-btn">Connect Keyboard</button>
 <div id="status" role="status" aria-live="polite" class="disconnected">Not connected</div>
+
+<div id="spam-state" class="off hidden">SPAM: OFF</div>
 
 <div class="panels hidden" id="panels">
   <div class="panel steer">
@@ -91,6 +99,15 @@
       <div class="hint" id="hint-brake-jitter">Random range added to gap (humanization)</div>
     </div>
   </div>
+
+  <div class="panel toggle">
+    <h2>Toggle Key</h2>
+    <div class="field">
+      <label for="toggle-key">Fn + <span id="v-toggle-key">G</span></label>
+      <select id="toggle-key" aria-describedby="hint-toggle-key"></select>
+      <div class="hint" id="hint-toggle-key">Which Fn+key combo toggles spam mode on/off</div>
+    </div>
+  </div>
 </div>
 
 <div class="actions hidden" id="actions">
@@ -119,9 +136,44 @@ const VAL = {
   'brake-jitter':  8,
 };
 
+const VAL_TOGGLE_ROW = 9;
+const VAL_TOGGLE_COL = 10;
+
+const TOGGLE_KEYS = [
+  { name: 'G', row: 3, col: 5 },
+  { name: 'A', row: 3, col: 1 },
+  { name: 'B', row: 4, col: 6 },
+  { name: 'C', row: 4, col: 4 },
+  { name: 'D', row: 3, col: 3 },
+  { name: 'E', row: 2, col: 3 },
+  { name: 'F', row: 3, col: 4 },
+  { name: 'H', row: 3, col: 6 },
+  { name: 'I', row: 2, col: 8 },
+  { name: 'J', row: 3, col: 7 },
+  { name: 'K', row: 3, col: 8 },
+  { name: 'L', row: 3, col: 9 },
+  { name: 'M', row: 4, col: 8 },
+  { name: 'N', row: 4, col: 7 },
+  { name: 'O', row: 2, col: 9 },
+  { name: 'P', row: 2, col: 10 },
+  { name: 'Q', row: 2, col: 1 },
+  { name: 'R', row: 2, col: 4 },
+  { name: 'S', row: 3, col: 2 },
+  { name: 'T', row: 2, col: 5 },
+  { name: 'U', row: 2, col: 7 },
+  { name: 'V', row: 4, col: 5 },
+  { name: 'W', row: 2, col: 2 },
+  { name: 'X', row: 4, col: 3 },
+  { name: 'Y', row: 2, col: 6 },
+  { name: 'Z', row: 4, col: 2 },
+];
+
+const VAL_ENABLED = 11;
+
 let device = null;
 let busy = false;
 let statusTimeout = null;
+let pollInterval = null;
 
 const $ = id => document.getElementById(id);
 
@@ -142,11 +194,37 @@ function setBusy(isBusy) {
   $('send-btn').disabled = isBusy;
 }
 
+function updateSpamState(on) {
+  const el = $('spam-state');
+  el.textContent = on ? 'SPAM: ON' : 'SPAM: OFF';
+  el.classList.remove('on', 'off');
+  el.classList.add(on ? 'on' : 'off');
+}
+
+async function pollEnabled() {
+  if (busy || pending || !device) return;
+  try {
+    const val = await getValue(VAL_ENABLED);
+    if (val !== null) updateSpamState(val !== 0);
+  } catch (e) { /* ignore poll errors */ }
+}
+
 // Check WebHID support
 if (!navigator.hid) {
   $('connect-btn').disabled = true;
   setStatus('WebHID not available. Use Chrome or Edge.', 'disconnected');
 }
+
+// Populate toggle key dropdown
+TOGGLE_KEYS.forEach((k, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = k.name;
+  $('toggle-key').appendChild(opt);
+});
+$('toggle-key').addEventListener('change', () => {
+  $('v-toggle-key').textContent = TOGGLE_KEYS[$('toggle-key').value].name;
+});
 
 // Update displayed value when slider moves
 Object.keys(VAL).forEach(key => {
@@ -157,7 +235,10 @@ Object.keys(VAL).forEach(key => {
 
 function onDisconnect() {
   device = null;
+  clearInterval(pollInterval);
+  pollInterval = null;
   $('connect-btn').disabled = false;
+  $('spam-state').classList.add('hidden');
   $('panels').classList.add('hidden');
   $('actions').classList.add('hidden');
   setBusy(false);
@@ -174,12 +255,16 @@ $('connect-btn').addEventListener('click', async () => {
     await device.open();
     setStatus('Connected: ' + (device.productName || 'Keychron Q3 Max'), 'connected');
     $('connect-btn').disabled = true;
+    $('spam-state').classList.remove('hidden');
     $('panels').classList.remove('hidden');
     $('actions').classList.remove('hidden');
     device.addEventListener('inputreport', onInputReport);
     device.addEventListener('disconnect', onDisconnect);
     await readAll();
+    pollInterval = setInterval(pollEnabled, 500);
   } catch (e) {
+    device = null;
+    $('connect-btn').disabled = false;
     setStatus('Error: ' + e.message, 'disconnected');
   }
 });
@@ -227,7 +312,8 @@ async function getValue(valueId) {
 
 async function setValue(valueId, val) {
   const resp = await sendReport(CMD_SET, CHANNEL, valueId, [(val >> 8) & 0xFF, val & 0xFF]);
-  if (!resp || resp[0] === 0xFF) throw new Error('Firmware rejected value ' + valueId);
+  if (!resp) throw new Error('Timeout setting value ' + valueId);
+  if (resp[0] === 0xFF) throw new Error('Firmware rejected value ' + valueId);
 }
 
 async function readAll() {
@@ -239,6 +325,19 @@ async function readAll() {
       if (val !== null) {
         $(key).value = val;
         $('v-' + key).textContent = $(key).value;
+      }
+    }
+    // Read spam enabled state
+    const enabled = await getValue(VAL_ENABLED);
+    if (enabled !== null) updateSpamState(enabled !== 0);
+    // Read toggle key position
+    const tRow = await getValue(VAL_TOGGLE_ROW);
+    const tCol = await getValue(VAL_TOGGLE_COL);
+    if (tRow !== null && tCol !== null) {
+      const idx = TOGGLE_KEYS.findIndex(k => k.row === tRow && k.col === tCol);
+      if (idx >= 0) {
+        $('toggle-key').value = idx;
+        $('v-toggle-key').textContent = TOGGLE_KEYS[idx].name;
       }
     }
     setStatus('Values read!', 'connected', 1500);
@@ -256,6 +355,10 @@ async function sendAll() {
     for (const [key, vid] of Object.entries(VAL)) {
       await setValue(vid, parseInt($(key).value, 10));
     }
+    // Send toggle key position
+    const tk = TOGGLE_KEYS[$('toggle-key').value];
+    await setValue(VAL_TOGGLE_ROW, tk.row);
+    await setValue(VAL_TOGGLE_COL, tk.col);
     setStatus('Values sent!', 'connected', 1500);
   } catch (e) {
     setStatus('Send error: ' + e.message, 'disconnected');
