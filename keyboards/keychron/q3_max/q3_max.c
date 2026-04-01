@@ -27,9 +27,6 @@
 #    include "battery.h"
 #endif
 
-#define POWER_ON_LED_DURATION 3000
-static uint32_t power_on_indicator_timer;
-
 #ifdef DIP_SWITCH_ENABLE
 bool dip_switch_update_kb(uint8_t index, bool active) {
     if (index == 0) {
@@ -42,42 +39,12 @@ bool dip_switch_update_kb(uint8_t index, bool active) {
 #endif
 
 void keyboard_post_init_kb(void) {
-#ifdef LK_WIRELESS_ENABLE
-    palSetLineMode(P2P4_MODE_SELECT_PIN, PAL_MODE_INPUT);
-    palSetLineMode(BT_MODE_SELECT_PIN, PAL_MODE_INPUT);
-
-    lkbt51_init(false);
-    wireless_init();
-#endif
-
-    power_on_indicator_timer = timer_read32();
-#ifdef ENCODER_ENABLE
-    encoder_cb_init();
-#endif
-
+    keychron_common_init();
     keyboard_post_init_user();
-}
-
-bool keychron_task_kb(void) {
-
-    if (power_on_indicator_timer) {
-        if (timer_elapsed32(power_on_indicator_timer) > POWER_ON_LED_DURATION) {
-            power_on_indicator_timer = 0;
-#ifdef LK_WIRELESS_ENABLE
-            writePin(BAT_LOW_LED_PIN, !BAT_LOW_LED_PIN_ON_STATE);
-#endif
-
-        } else {
-#ifdef LK_WIRELESS_ENABLE
-            writePin(BAT_LOW_LED_PIN, BAT_LOW_LED_PIN_ON_STATE);
-#endif
-        }
-    }
-    return true;
 }
 
 #ifdef LK_WIRELESS_ENABLE
 bool lpm_is_kb_idle(void) {
-    return power_on_indicator_timer == 0 && !factory_reset_indicating();
+    return !factory_reset_indicating();
 }
 #endif
