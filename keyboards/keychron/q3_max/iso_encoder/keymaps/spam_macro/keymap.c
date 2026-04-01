@@ -34,38 +34,49 @@ enum custom_keycodes {
 
 static bool spam_enabled = false;
 
-#define SPAM_STEER_BASE   80
-#define SPAM_STEER_JITTER 90
-#define SPAM_BRAKE_BASE   120
-#define SPAM_BRAKE_JITTER 100
+/*
+ * Phase 1 (initial hold): key held down for HOLD_MS so wheels reach full lock
+ * Phase 2 (tap cycle):    hold for TAP_HOLD_MS, release for GAP_MS, repeat
+ */
+#define SPAM_STEER_HOLD       200   // ms initial hold (full wheel turn)
+#define SPAM_STEER_TAP_HOLD   80    // ms each tap is held down
+#define SPAM_STEER_GAP_BASE   15    // ms gap between taps (key released)
+#define SPAM_STEER_GAP_JITTER 15    // randomized gap range (total: 15-30ms)
+
+#define SPAM_BRAKE_HOLD       150   // ms initial hold
+#define SPAM_BRAKE_TAP_HOLD   60    // ms each brake tap held down
+#define SPAM_BRAKE_GAP_BASE   20    // ms gap between brake taps
+#define SPAM_BRAKE_GAP_JITTER 15    // randomized gap range (total: 20-35ms)
 
 typedef struct {
     bool     active;
+    uint8_t  phase;       // 0 = initial hold, 1 = tap hold, 2 = tap gap
     uint16_t timer;
-    uint16_t interval;
     uint16_t keycode;
-    uint16_t base;
-    uint16_t jitter;
+    uint16_t hold_ms;
+    uint16_t tap_hold_ms;
+    uint16_t gap_base;
+    uint16_t gap_jitter;
 } spam_key_t;
 
 static spam_key_t spam_keys[] = {
-    { .active = false, .timer = 0, .interval = 80,  .keycode = KC_A, .base = SPAM_STEER_BASE, .jitter = SPAM_STEER_JITTER },
-    { .active = false, .timer = 0, .interval = 80,  .keycode = KC_D, .base = SPAM_STEER_BASE, .jitter = SPAM_STEER_JITTER },
-    { .active = false, .timer = 0, .interval = 120, .keycode = KC_S, .base = SPAM_BRAKE_BASE, .jitter = SPAM_BRAKE_JITTER },
+    { .active = false, .phase = 0, .timer = 0, .keycode = KC_A, .hold_ms = SPAM_STEER_HOLD, .tap_hold_ms = SPAM_STEER_TAP_HOLD, .gap_base = SPAM_STEER_GAP_BASE, .gap_jitter = SPAM_STEER_GAP_JITTER },
+    { .active = false, .phase = 0, .timer = 0, .keycode = KC_D, .hold_ms = SPAM_STEER_HOLD, .tap_hold_ms = SPAM_STEER_TAP_HOLD, .gap_base = SPAM_STEER_GAP_BASE, .gap_jitter = SPAM_STEER_GAP_JITTER },
+    { .active = false, .phase = 0, .timer = 0, .keycode = KC_S, .hold_ms = SPAM_BRAKE_HOLD, .tap_hold_ms = SPAM_BRAKE_TAP_HOLD, .gap_base = SPAM_BRAKE_GAP_BASE, .gap_jitter = SPAM_BRAKE_GAP_JITTER },
 };
 
 #define SPAM_KEY_COUNT (sizeof(spam_keys) / sizeof(spam_keys[0]))
 
-static uint16_t humanized_interval(spam_key_t *key) {
-    return key->base + (rand() % key->jitter);
+static uint16_t randomized_gap(spam_key_t *key) {
+    return key->gap_base + (rand() % key->gap_jitter);
 }
 
 static void spam_key_press(spam_key_t *key) {
     if (spam_enabled) {
-        tap_code_delay(key->keycode, 10);
+        register_code(key->keycode);   // hold key down to start turning
         key->active = true;
-        key->timer = timer_read();
-        key->interval = humanized_interval(key);
+        key->phase  = 0;               // initial hold phase
+        key->timer  = timer_read();
     } else {
         register_code(key->keycode);
     }
@@ -73,6 +84,7 @@ static void spam_key_press(spam_key_t *key) {
 
 static void spam_key_release(spam_key_t *key) {
     key->active = false;
+    key->phase  = 0;
     unregister_code(key->keycode);
 }
 
@@ -174,10 +186,32 @@ void matrix_scan_user(void) {
     if (!spam_enabled) return;
     for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
         spam_key_t *key = &spam_keys[i];
-        if (key->active && timer_elapsed(key->timer) > key->interval) {
-            tap_code_delay(key->keycode, 10);
-            key->timer = timer_read();
-            key->interval = humanized_interval(key);
+        if (!key->active) continue;
+
+        switch (key->phase) {
+            case 0: // Initial hold: key held down, wheels turning to full lock
+                if (timer_elapsed(key->timer) > key->hold_ms) {
+                    unregister_code(key->keycode);  // brief release
+                    key->phase = 2;                 // go to gap
+                    key->timer = timer_read();
+                }
+                break;
+
+            case 1: // Tap hold: key is pressed down during a tap
+                if (timer_elapsed(key->timer) > key->tap_hold_ms) {
+                    unregister_code(key->keycode);  // release
+                    key->phase = 2;                 // go to gap
+                    key->timer = timer_read();
+                }
+                break;
+
+            case 2: // Gap: key is released briefly between taps
+                if (timer_elapsed(key->timer) > randomized_gap(key)) {
+                    register_code(key->keycode);    // press again
+                    key->phase = 1;                 // go to tap hold
+                    key->timer = timer_read();
+                }
+                break;
         }
     }
 }
