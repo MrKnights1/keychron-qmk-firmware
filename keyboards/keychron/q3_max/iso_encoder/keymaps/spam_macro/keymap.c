@@ -26,12 +26,6 @@ enum layers {
     WIN_FN,
 };
 
-enum custom_keycodes {
-    SPAM_A = NEW_SAFE_RANGE,
-    SPAM_D,
-    SPAM_S,
-};
-
 static bool spam_enabled = false;
 static uint16_t toggle_row = 3;   // default: G key [3,5]
 static uint16_t toggle_col = 5;
@@ -116,7 +110,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_ESC,   KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,    KC_MUTE,  KC_PSCR,  KC_CTANA, RGB_MOD,
         KC_GRV,   KC_1,     KC_2,     KC_3,     KC_4,     KC_5,     KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     KC_MINS,  KC_EQL,    KC_BSPC,  KC_INS,   KC_HOME,  KC_PGUP,
         KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,   KC_ENT,   KC_DEL,   KC_END,   KC_PGDN,
-        KC_CAPS,  SPAM_A,   SPAM_S,   SPAM_D,   KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,
+        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,
         KC_LSFT,  KC_NUBS,  KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,             KC_RSFT,            KC_UP,
         KC_LCTL,  KC_LWIN,  KC_LALT,                               KC_SPC,                                  KC_RALT,  KC_RWIN,  MO(WIN_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
 
@@ -139,6 +133,10 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {
     [WIN_FN]   = {ENCODER_CCW_CW(RGB_VAD, RGB_VAI)},
 };
 #endif // ENCODER_MAP_ENABLE
+
+#ifdef SNAP_CLICK_ENABLE
+extern bool process_record_snap_click(uint16_t keycode, keyrecord_t *record);
+#endif
 
 void keyboard_post_init_user(void) {
     srand(timer_read32());
@@ -166,31 +164,27 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false; // swallow both press and release
     }
 
-    switch (keycode) {
-        case SPAM_A:
-            if (record->event.pressed) {
-                spam_key_press(&spam_keys[SPAM_IDX_A]);
-            } else {
-                spam_key_release(&spam_keys[SPAM_IDX_A]);
+    // When spam is enabled, intercept A/S/D for the spam macro.
+    // When spam is off, they pass through to Snap Click and normal processing.
+    if (spam_enabled) {
+        for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
+            if (keycode == spam_keys[i].keycode) {
+                if (record->event.pressed) {
+                    spam_key_press(&spam_keys[i]);
+                } else {
+                    spam_key_release(&spam_keys[i]);
+                }
+                return false;
             }
-            return false;
-
-        case SPAM_D:
-            if (record->event.pressed) {
-                spam_key_press(&spam_keys[SPAM_IDX_D]);
-            } else {
-                spam_key_release(&spam_keys[SPAM_IDX_D]);
-            }
-            return false;
-
-        case SPAM_S:
-            if (record->event.pressed) {
-                spam_key_press(&spam_keys[SPAM_IDX_S]);
-            } else {
-                spam_key_release(&spam_keys[SPAM_IDX_S]);
-            }
-            return false;
+        }
     }
+
+#ifdef SNAP_CLICK_ENABLE
+    if (!process_record_snap_click(keycode, record)) {
+        return false;
+    }
+#endif
+
     return true;
 }
 
