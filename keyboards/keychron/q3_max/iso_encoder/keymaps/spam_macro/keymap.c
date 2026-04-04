@@ -30,6 +30,14 @@ static bool spam_enabled = false;
 static uint16_t toggle_row = 3;   // default: G key [3,5]
 static uint16_t toggle_col = 5;
 
+static bool pilot_enabled = false;
+static uint16_t pilot_toggle_row = 3;  // default: H key [3,6]
+static uint16_t pilot_toggle_col = 6;
+
+// LED indicator colors (default red)
+static uint16_t spam_led_r = 255, spam_led_g = 0, spam_led_b = 0;
+static uint16_t pilot_led_r = 255, pilot_led_g = 0, pilot_led_b = 0;
+
 enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
 
 /*
@@ -164,6 +172,41 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false; // swallow both press and release
     }
 
+    // Pilot mode toggle: Fn + configured key
+    if (record->event.key.row == pilot_toggle_row
+        && record->event.key.col == pilot_toggle_col
+        && layer_state_is(WIN_FN)) {
+        if (record->event.pressed) {
+            pilot_enabled = !pilot_enabled;
+            if (!pilot_enabled) {
+                unregister_code(KC_P8);
+                unregister_code(KC_P4);
+                unregister_code(KC_P5);
+                unregister_code(KC_P6);
+            }
+        }
+        return false;
+    }
+
+    // Pilot mode: remap arrows to numpad for GTA V flying
+    if (pilot_enabled) {
+        uint16_t replacement = 0;
+        switch (keycode) {
+            case KC_UP:   replacement = KC_P8; break;
+            case KC_LEFT: replacement = KC_P4; break;
+            case KC_DOWN: replacement = KC_P5; break;
+            case KC_RGHT: replacement = KC_P6; break;
+        }
+        if (replacement) {
+            if (record->event.pressed) {
+                register_code(replacement);
+            } else {
+                unregister_code(replacement);
+            }
+            return false;
+        }
+    }
+
     // When spam is enabled, intercept A/S/D for the spam macro.
     // When spam is off, they pass through to Snap Click and normal processing.
     if (spam_enabled) {
@@ -203,6 +246,15 @@ enum spam_value_id {
     SPAM_VAL_TOGGLE_ROW,      // 9
     SPAM_VAL_TOGGLE_COL,      // 10
     SPAM_VAL_ENABLED,         // 11
+    PILOT_VAL_TOGGLE_ROW,     // 12
+    PILOT_VAL_TOGGLE_COL,     // 13
+    PILOT_VAL_ENABLED,        // 14
+    SPAM_LED_R,               // 15
+    SPAM_LED_G,               // 16
+    SPAM_LED_B,               // 17
+    PILOT_LED_R,              // 18
+    PILOT_LED_G,              // 19
+    PILOT_LED_B,              // 20
 };
 
 static uint16_t *spam_value_ptr(uint8_t value_id) {
@@ -217,6 +269,14 @@ static uint16_t *spam_value_ptr(uint8_t value_id) {
         case SPAM_VAL_BRAKE_GAP_JITTER: return &spam_keys[SPAM_IDX_S].gap_jitter;
         case SPAM_VAL_TOGGLE_ROW:       return &toggle_row;
         case SPAM_VAL_TOGGLE_COL:       return &toggle_col;
+        case PILOT_VAL_TOGGLE_ROW:      return &pilot_toggle_row;
+        case PILOT_VAL_TOGGLE_COL:      return &pilot_toggle_col;
+        case SPAM_LED_R:                return &spam_led_r;
+        case SPAM_LED_G:                return &spam_led_g;
+        case SPAM_LED_B:                return &spam_led_b;
+        case PILOT_LED_R:               return &pilot_led_r;
+        case PILOT_LED_G:               return &pilot_led_g;
+        case PILOT_LED_B:               return &pilot_led_b;
         default: return NULL;
     }
 }
@@ -239,19 +299,26 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
         return;
     }
 
-    // Handle spam_enabled separately (bool, not uint16_t)
-    if (value_id == SPAM_VAL_ENABLED) {
+    // Handle bool values separately (not uint16_t)
+    if (value_id == SPAM_VAL_ENABLED || value_id == PILOT_VAL_ENABLED) {
+        bool *flag = (value_id == SPAM_VAL_ENABLED) ? &spam_enabled : &pilot_enabled;
         switch (*command_id) {
             case id_custom_get_value:
                 data[3] = 0;
-                data[4] = spam_enabled ? 1 : 0;
+                data[4] = *flag ? 1 : 0;
                 break;
             case id_custom_set_value:
-                spam_enabled = data[4] != 0;
-                if (!spam_enabled) {
+                *flag = data[4] != 0;
+                if (value_id == SPAM_VAL_ENABLED && !spam_enabled) {
                     for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
                         if (spam_keys[i].active) spam_key_release(&spam_keys[i]);
                     }
+                }
+                if (value_id == PILOT_VAL_ENABLED && !pilot_enabled) {
+                    unregister_code(KC_P8);
+                    unregister_code(KC_P4);
+                    unregister_code(KC_P5);
+                    unregister_code(KC_P6);
                 }
                 break;
             case id_custom_save:
@@ -280,10 +347,12 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             } else if (value_id == SPAM_VAL_STEER_TAP_HOLD || value_id == SPAM_VAL_BRAKE_TAP_HOLD) {
                 if (val < 5) val = 5;
                 if (val > 1000) val = 1000;
-            } else if (value_id == SPAM_VAL_TOGGLE_ROW) {
+            } else if (value_id == SPAM_VAL_TOGGLE_ROW || value_id == PILOT_VAL_TOGGLE_ROW) {
                 if (val > 5) val = 5;
-            } else if (value_id == SPAM_VAL_TOGGLE_COL) {
+            } else if (value_id == SPAM_VAL_TOGGLE_COL || value_id == PILOT_VAL_TOGGLE_COL) {
                 if (val > 16) val = 16;
+            } else if (value_id >= SPAM_LED_R && value_id <= PILOT_LED_B) {
+                if (val > 255) val = 255;
             } else {
                 if (val < 5) val = 5;
                 if (val > 2000) val = 2000;
@@ -335,3 +404,22 @@ void matrix_scan_user(void) {
         }
     }
 }
+
+#ifdef RGB_MATRIX_ENABLE
+bool rgb_matrix_indicators_user(void) {
+    if (spam_enabled) {
+        uint8_t r = spam_led_r, g = spam_led_g, b = spam_led_b;
+        rgb_matrix_set_color(51, r, g, b);  // A
+        rgb_matrix_set_color(52, r, g, b);  // S
+        rgb_matrix_set_color(53, r, g, b);  // D
+    }
+    if (pilot_enabled) {
+        uint8_t r = pilot_led_r, g = pilot_led_g, b = pilot_led_b;
+        rgb_matrix_set_color(76, r, g, b);  // Up
+        rgb_matrix_set_color(85, r, g, b);  // Left
+        rgb_matrix_set_color(86, r, g, b);  // Down
+        rgb_matrix_set_color(87, r, g, b);  // Right
+    }
+    return true;
+}
+#endif
