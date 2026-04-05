@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q3 Max Control Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">Q3<span>MAX</span></div>
+    <div class="device-name" id="device-name">Not connected</div>
+  </div>
+  <div class="topbar-right">
+    <div class="leds hidden" id="leds">
+      <div class="led" data-mode="spam" id="spam-led"><div class="led-dot"></div>SPAM</div>
+      <div class="led" data-mode="pilot" id="pilot-led"><div class="led-dot"></div>PILOT</div>
+    </div>
+    <div id="status" role="status" aria-live="polite" class="disconnected">OFFLINE</div>
+    <button id="connect-btn">CONNECT</button>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- Welcome screen (shown when disconnected) -->
+  <div id="welcome" class="welcome">
+    <div class="welcome-icon">&#9000;</div>
+    <h2>Keyboard Configuration</h2>
+    <p>Connect your Q3 Max via USB cable to configure spam macro timing, pilot mode, and toggle keys.<br><br>Bluetooth and 2.4GHz are not supported for configuration.</p>
+  </div>
+
+  <!-- Dashboard (shown when connected) -->
+  <div id="dashboard" class="dashboard hidden">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="spam">Spam Macro</button>
+      <button class="tab" data-tab="pilot">Pilot Mode</button>
+      <button class="tab" data-tab="flash">Flash Firmware</button>
+    </div>
+
+    <!-- Spam Macro Tab -->
+    <div class="tab-content active" id="tab-spam">
+      <div class="panel-grid">
+        <div class="panel steer">
+          <h3>Steering &mdash; A / D <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Initial Hold</div>
+              <div class="field-value"><span id="v-steer-hold">200</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="steer-hold" min="50" max="500" step="10" value="200" aria-describedby="hint-steer-hold">
+            <div class="hint" id="hint-steer-hold">Hold duration to reach full wheel lock</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Tap Hold</div>
+              <div class="field-value"><span id="v-steer-tap">80</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="steer-tap" min="10" max="200" step="5" value="80" aria-describedby="hint-steer-tap">
+            <div class="hint" id="hint-steer-tap">Duration each tap holds the key down</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Gap Base</div>
+              <div class="field-value"><span id="v-steer-gap">15</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="steer-gap" min="5" max="100" step="5" value="15" aria-describedby="hint-steer-gap">
+            <div class="hint" id="hint-steer-gap">Minimum release time between taps</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Gap Jitter</div>
+              <div class="field-value"><span id="v-steer-jitter">15</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="steer-jitter" min="0" max="50" step="1" value="15" aria-describedby="hint-steer-jitter">
+            <div class="hint" id="hint-steer-jitter">Randomized range for humanization</div>
+          </div>
+        </div>
+
+        <div class="panel brake">
+          <h3>Braking &mdash; S <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Initial Hold</div>
+              <div class="field-value"><span id="v-brake-hold">150</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="brake-hold" min="50" max="500" step="10" value="150" aria-describedby="hint-brake-hold">
+            <div class="hint" id="hint-brake-hold">Hold duration before tapping begins</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Tap Hold</div>
+              <div class="field-value"><span id="v-brake-tap">60</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="brake-tap" min="10" max="200" step="5" value="60" aria-describedby="hint-brake-tap">
+            <div class="hint" id="hint-brake-tap">Duration each brake tap holds</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Gap Base</div>
+              <div class="field-value"><span id="v-brake-gap">20</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="brake-gap" min="5" max="100" step="5" value="20" aria-describedby="hint-brake-gap">
+            <div class="hint" id="hint-brake-gap">Minimum release between brake taps</div>
+          </div>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Gap Jitter</div>
+              <div class="field-value"><span id="v-brake-jitter">15</span> <span>ms</span></div>
+            </div>
+            <input type="range" id="brake-jitter" min="0" max="50" step="1" value="15" aria-describedby="hint-brake-jitter">
+            <div class="hint" id="hint-brake-jitter">Randomized range for humanization</div>
+          </div>
+        </div>
+
+        <div class="panel config">
+          <h3>Toggle Key <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Spam Mode Activation</div>
+              <div class="field-value">Fn + <span id="v-toggle-key">G</span></div>
+            </div>
+            <select id="toggle-key" aria-describedby="hint-toggle-key"></select>
+            <div class="hint" id="hint-toggle-key">Which Fn+key combo toggles spam mode on/off</div>
+          </div>
+        </div>
+
+        <div class="panel config">
+          <h3>LED Color <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-label">A / S / D indicator when active</div>
+            <div class="color-field">
+              <input type="color" id="spam-color" value="#ff0000">
+              <span class="color-hex" id="spam-color-hex">#ff0000</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pilot Mode Tab -->
+    <div class="tab-content" id="tab-pilot">
+      <div class="panel-grid">
+        <div class="panel pilot-cfg">
+          <h3>Toggle Key <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-header">
+              <div class="field-label">Pilot Mode Activation</div>
+              <div class="field-value">Fn + <span id="v-pilot-toggle-key">H</span></div>
+            </div>
+            <select id="pilot-toggle-key" aria-describedby="hint-pilot-toggle"></select>
+            <div class="hint" id="hint-pilot-toggle">Which Fn+key combo toggles pilot mode</div>
+          </div>
+        </div>
+
+        <div class="panel pilot-cfg">
+          <h3>LED Color <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-label">Arrow key indicator when active</div>
+            <div class="color-field">
+              <input type="color" id="pilot-color" value="#ff0000">
+              <span class="color-hex" id="pilot-color-hex">#ff0000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel pilot-cfg" style="grid-column: 1 / -1;">
+          <h3>Key Mapping <span class="line"></span></h3>
+          <div class="field">
+            <div class="field-label" style="margin-bottom: .6rem;">When active, arrow keys send numpad codes:</div>
+            <div class="mapping-preview">
+              <div class="map-key empty"></div>
+              <div class="map-key">&uarr; &rarr; NUM8</div>
+              <div class="map-key empty"></div>
+              <div class="map-key">&larr; &rarr; NUM4</div>
+              <div class="map-key">&darr; &rarr; NUM5</div>
+              <div class="map-key">&rarr; &rarr; NUM6</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flash Firmware Tab -->
+    <div class="tab-content" id="tab-flash">
+      <div class="flash-content">
+
+        <div class="panel config">
+          <h3>Firmware Update <span class="line"></span></h3>
+
+          <div class="file-picker-area">
+            <label for="flash-file-input">Choose .bin file or drag &amp; drop</label>
+            <input type="file" id="flash-file-input" accept=".bin">
+            <div class="picker-hint">Only .bin firmware files are accepted</div>
+          </div>
+          <div class="file-info hidden" id="flash-file-info">
+            <span class="file-name" id="flash-file-name"></span>
+            <span class="file-size" id="flash-file-size"></span>
+          </div>
+
+          <div class="flash-actions" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <button class="btn btn-amber" id="flash-bootloader-btn">ENTER BOOTLOADER</button>
+            <button class="btn" id="flash-exit-btn">EXIT BOOTLOADER</button>
+            <button class="btn btn-danger" id="flash-firmware-btn" disabled>FLASH FIRMWARE</button>
+          </div>
+
+          <div class="flash-progress hidden" id="flash-progress" style="height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-bottom: 1rem;">
+            <div class="flash-progress-bar" id="flash-progress-bar" style="height: 100%; width: 0; background: var(--green); transition: width .2s;"></div>
+          </div>
+
+          <div class="flash-log hidden" id="flash-log"></div>
+
+          <div style="margin-top: 1.5rem; color: var(--text-dim); font-size: .8rem; line-height: 1.6;">
+            <p><strong style="color: var(--amber);">Option A:</strong> Select .bin file above, click FLASH FIRMWARE (flashes directly from browser)</p>
+            <p><strong style="color: var(--text);">Option B:</strong> Click ENTER BOOTLOADER, then flash with
+              <a href="https://github.com/qmk/qmk_toolbox/releases/latest" target="_blank" rel="noopener" style="color: var(--accent);">QMK Toolbox</a>
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Actions bar -->
+    <div class="actions-bar">
+      <button class="btn" id="read-btn">READ</button>
+      <button class="btn btn-primary" id="send-btn">SEND TO KEYBOARD</button>
+      <button class="btn btn-save" id="save-btn">SAVE TO EEPROM</button>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

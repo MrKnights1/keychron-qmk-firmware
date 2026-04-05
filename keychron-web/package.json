@@ -1,0 +1,17 @@
+{
+  "name": "keychron-web",
+  "module": "src/app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "bun build src/app.js --outdir dist --format esm --minify && cp src/index.html dist/ && cp -r src/styles dist/",
+    "dev": "bun build src/app.js --outdir dist --format esm --watch",
+    "deploy": "bun run build && rsync -avz dist/ root@65.109.239.94:/root/keychron-web/"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

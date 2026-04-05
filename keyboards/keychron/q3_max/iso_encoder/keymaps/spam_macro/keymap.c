@@ -383,6 +383,7 @@ enum spam_value_id {
     PILOT_LED_R,              // 18
     PILOT_LED_G,              // 19
     PILOT_LED_B,              // 20
+    SPAM_VAL_BOOTLOADER,      // 21
 };
 
 static uint16_t *spam_value_ptr(uint8_t value_id) {
@@ -424,6 +425,20 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
 
     if (channel_id != SPAM_CHANNEL_ID) {
         *command_id = id_unhandled;
+        return;
+    }
+
+    // Bootloader entry: SET with magic 0xBEEF triggers DFU mode
+    if (value_id == SPAM_VAL_BOOTLOADER) {
+        if (*command_id == id_custom_get_value) {
+            data[3] = 0;
+            data[4] = 0;
+        } else if (*command_id == id_custom_set_value) {
+            uint16_t magic = ((uint16_t)data[3] << 8) | data[4];
+            if (magic == 0xBEEF) {
+                bootloader_jump();
+            }
+        }
         return;
     }
 
