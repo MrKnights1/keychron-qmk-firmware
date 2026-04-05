@@ -145,6 +145,16 @@ body::before {
 .led[data-mode="pilot"] { color: var(--amber); }
 .led[data-mode="pilot"].on .led-dot { background: var(--amber); }
 
+.battery {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  color: var(--text-dim);
+  letter-spacing: .05em;
+}
+.battery.low { color: var(--red); }
+.battery.mid { color: var(--amber); }
+.battery.full { color: var(--green); }
+
 /* ── Main content ── */
 .main {
   position: relative;

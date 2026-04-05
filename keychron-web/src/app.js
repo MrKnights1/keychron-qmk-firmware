@@ -3,7 +3,7 @@
  * and module initialisation.
  */
 
-import { connect, isConnected } from './modules/hid.js';
+import { connect, isConnected, getValue } from './modules/hid.js';
 import {
   initConfigurator,
   readAll,
@@ -45,11 +45,47 @@ function updateLed(id, on) {
   el.classList.toggle('on', on);
 }
 
+/* ── Battery polling ── */
+const VAL_BATTERY = 22;
+let batteryInterval = null;
+
+async function pollBattery() {
+  if (!isConnected()) return;
+  try {
+    const raw = await getValue(VAL_BATTERY);
+    const el = $('battery-pct');
+    const wrap = $('battery');
+    if (!el || !wrap) return;
+    if (raw === null || raw < 256) {
+      // data[3]=0 means no battery hardware
+      el.textContent = '—';
+      wrap.className = 'battery';
+    } else {
+      const pct = raw & 0xFF;
+      el.textContent = pct + '%';
+      wrap.className = 'battery ' + (pct <= 20 ? 'low' : pct <= 50 ? 'mid' : 'full');
+    }
+  } catch (_) {}
+}
+
+function startBatteryPolling() {
+  stopBatteryPolling();
+  pollBattery();
+  batteryInterval = setInterval(pollBattery, 10000);
+}
+
+function stopBatteryPolling() {
+  clearInterval(batteryInterval);
+  batteryInterval = null;
+}
+
 /* ── Disconnect handler ── */
 function onDisconnect() {
   stopPolling();
+  stopBatteryPolling();
   $('connect-btn').disabled = false;
   $('leds').classList.add('hidden');
+  $('battery').classList.add('hidden');
   $('dashboard').classList.add('hidden');
   $('welcome').classList.remove('hidden');
   $('device-name').textContent = 'Not connected';
@@ -90,6 +126,7 @@ function initConnectButton() {
           $('welcome').classList.add('hidden');
           $('dashboard').classList.remove('hidden');
           $('leds').classList.remove('hidden');
+          $('battery').classList.remove('hidden');
         },
         onDisconnect,
       });
@@ -98,6 +135,7 @@ function initConnectButton() {
 
       await readAll();
       startPolling();
+      startBatteryPolling();
     } catch (err) {
       console.error('connect error:', err);
       $('connect-btn').disabled = false;

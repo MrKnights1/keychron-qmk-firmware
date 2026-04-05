@@ -20,6 +20,9 @@
 #include "eeconfig_kb.h"
 #include "eeconfig.h"
 #include <stdlib.h>
+#ifdef LK_WIRELESS_ENABLE
+#    include "battery.h"
+#endif
 
 enum layers {
     MAC_BASE,
@@ -384,6 +387,7 @@ enum spam_value_id {
     PILOT_LED_G,              // 19
     PILOT_LED_B,              // 20
     SPAM_VAL_BOOTLOADER,      // 21
+    SPAM_VAL_BATTERY,         // 22
 };
 
 static uint16_t *spam_value_ptr(uint8_t value_id) {
@@ -438,6 +442,20 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             if (magic == 0xBEEF) {
                 bootloader_jump();
             }
+        }
+        return;
+    }
+
+    // Battery level: GET returns [has_battery, percentage]
+    if (value_id == SPAM_VAL_BATTERY) {
+        if (*command_id == id_custom_get_value) {
+#ifdef LK_WIRELESS_ENABLE
+            data[3] = 1;  // has battery
+            data[4] = battery_get_percentage();
+#else
+            data[3] = 0;  // no battery
+            data[4] = 0;
+#endif
         }
         return;
     }

@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "bun build src/app.js --outdir dist --format esm --minify && cp src/index.html dist/ && cp -r src/styles dist/",
+    "build": "bun run build.js",
     "dev": "bun build src/app.js --outdir dist --format esm --watch",
     "deploy": "bun run build && rsync -avz dist/ root@65.109.239.94:/root/keychron-web/"
   },
