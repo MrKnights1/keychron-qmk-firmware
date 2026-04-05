@@ -73,6 +73,10 @@ static uint16_t pilot_toggle_col = DEFAULT_PILOT_TOGGLE_COL;
 static uint16_t spam_led_r = DEFAULT_LED_R, spam_led_g = DEFAULT_LED_G, spam_led_b = DEFAULT_LED_B;
 static uint16_t pilot_led_r = DEFAULT_LED_R, pilot_led_g = DEFAULT_LED_G, pilot_led_b = DEFAULT_LED_B;
 
+static uint32_t flash_timer = 0;
+static bool     flash_on    = false;
+#define FLASH_DURATION_MS 300
+
 enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
 
 /*
@@ -292,6 +296,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         && layer_state_is(WIN_FN)) {
         if (record->event.pressed) {
             spam_enabled = !spam_enabled;
+            flash_timer = timer_read32();
+            flash_on    = spam_enabled;
             if (!spam_enabled) {
                 for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
                     if (spam_keys[i].active) {
@@ -309,6 +315,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         && layer_state_is(WIN_FN)) {
         if (record->event.pressed) {
             pilot_enabled = !pilot_enabled;
+            flash_timer = timer_read32();
+            flash_on    = pilot_enabled;
             if (!pilot_enabled) {
                 unregister_code(KC_P8);
                 unregister_code(KC_P4);
@@ -568,6 +576,19 @@ void matrix_scan_user(void) {
 
 #ifdef RGB_MATRIX_ENABLE
 bool rgb_matrix_indicators_user(void) {
+    // Whole-keyboard flash on mode toggle: green = ON, red = OFF
+    if (flash_timer != 0) {
+        if (timer_elapsed32(flash_timer) < FLASH_DURATION_MS) {
+            uint8_t r = flash_on ? 0 : 255;
+            uint8_t g = flash_on ? 255 : 0;
+            for (uint8_t i = 0; i < RGB_MATRIX_LED_COUNT; i++) {
+                rgb_matrix_set_color(i, r, g, 0);
+            }
+            return true;
+        }
+        flash_timer = 0;
+    }
+
     if (host_keyboard_led_state().caps_lock) {
         rgb_matrix_set_color(50, 255, 0, 0);
     }
