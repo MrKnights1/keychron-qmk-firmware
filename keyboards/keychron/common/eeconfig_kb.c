@@ -32,4 +32,8 @@ void eeconfig_init_kb_datablock(void) {
     extern void eeconfig_reset_custom_rgb(void);
     eeconfig_reset_custom_rgb();
 #endif
+#ifdef SPAM_MACRO_ENABLE
+    extern void spam_macro_config_reset(void);
+    spam_macro_config_reset();
+#endif
 }

@@ -17,6 +17,8 @@
 #include QMK_KEYBOARD_H
 #include "keychron_common.h"
 #include "via.h"
+#include "eeconfig_kb.h"
+#include "eeconfig.h"
 #include <stdlib.h>
 
 enum layers {
@@ -26,17 +28,47 @@ enum layers {
     WIN_FN,
 };
 
+/* ── EEPROM-backed configuration ── */
+typedef struct __attribute__((__packed__)) {
+    uint16_t steer_hold_ms;
+    uint16_t steer_tap_hold_ms;
+    uint16_t steer_gap_base;
+    uint16_t steer_gap_jitter;
+    uint16_t brake_hold_ms;
+    uint16_t brake_tap_hold_ms;
+    uint16_t brake_gap_base;
+    uint16_t brake_gap_jitter;
+    uint8_t  toggle_row;
+    uint8_t  toggle_col;
+    uint8_t  pilot_toggle_row;
+    uint8_t  pilot_toggle_col;
+    uint8_t  spam_led_r, spam_led_g, spam_led_b;
+    uint8_t  pilot_led_r, pilot_led_g, pilot_led_b;
+} spam_macro_config_t;
+
+_Static_assert(sizeof(spam_macro_config_t) == EECONFIG_SIZE_SPAM_MACRO,
+               "spam_macro_config_t size mismatch with EECONFIG_SIZE_SPAM_MACRO");
+
+#define DEFAULT_SPAM_TOGGLE_ROW   3  // G key [3,5]
+#define DEFAULT_SPAM_TOGGLE_COL   5
+#define DEFAULT_PILOT_TOGGLE_ROW  3  // H key [3,6]
+#define DEFAULT_PILOT_TOGGLE_COL  6
+#define DEFAULT_LED_R  255
+#define DEFAULT_LED_G  0
+#define DEFAULT_LED_B  0
+
 static bool spam_enabled = false;
-static uint16_t toggle_row = 3;   // default: G key [3,5]
-static uint16_t toggle_col = 5;
+// uint16_t required — spam_value_ptr() returns uint16_t* for VIA protocol.
+// VIA clamp ensures values fit in uint8_t for EEPROM save.
+static uint16_t toggle_row = DEFAULT_SPAM_TOGGLE_ROW;
+static uint16_t toggle_col = DEFAULT_SPAM_TOGGLE_COL;
 
 static bool pilot_enabled = false;
-static uint16_t pilot_toggle_row = 3;  // default: H key [3,6]
-static uint16_t pilot_toggle_col = 6;
+static uint16_t pilot_toggle_row = DEFAULT_PILOT_TOGGLE_ROW;
+static uint16_t pilot_toggle_col = DEFAULT_PILOT_TOGGLE_COL;
 
-// LED indicator colors (default red)
-static uint16_t spam_led_r = 255, spam_led_g = 0, spam_led_b = 0;
-static uint16_t pilot_led_r = 255, pilot_led_g = 0, pilot_led_b = 0;
+static uint16_t spam_led_r = DEFAULT_LED_R, spam_led_g = DEFAULT_LED_G, spam_led_b = DEFAULT_LED_B;
+static uint16_t pilot_led_r = DEFAULT_LED_R, pilot_led_g = DEFAULT_LED_G, pilot_led_b = DEFAULT_LED_B;
 
 enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
 
@@ -96,6 +128,101 @@ static void spam_key_release(spam_key_t *key) {
     unregister_code(key->keycode);
 }
 
+/* ── EEPROM persistence ── */
+
+void spam_macro_config_reset(void) {
+    spam_macro_config_t cfg = {
+        .steer_hold_ms     = SPAM_STEER_HOLD,
+        .steer_tap_hold_ms = SPAM_STEER_TAP_HOLD,
+        .steer_gap_base    = SPAM_STEER_GAP_BASE,
+        .steer_gap_jitter  = SPAM_STEER_GAP_JITTER,
+        .brake_hold_ms     = SPAM_BRAKE_HOLD,
+        .brake_tap_hold_ms = SPAM_BRAKE_TAP_HOLD,
+        .brake_gap_base    = SPAM_BRAKE_GAP_BASE,
+        .brake_gap_jitter  = SPAM_BRAKE_GAP_JITTER,
+        .toggle_row        = DEFAULT_SPAM_TOGGLE_ROW,
+        .toggle_col        = DEFAULT_SPAM_TOGGLE_COL,
+        .pilot_toggle_row  = DEFAULT_PILOT_TOGGLE_ROW,
+        .pilot_toggle_col  = DEFAULT_PILOT_TOGGLE_COL,
+        .spam_led_r = DEFAULT_LED_R, .spam_led_g = DEFAULT_LED_G, .spam_led_b = DEFAULT_LED_B,
+        .pilot_led_r = DEFAULT_LED_R, .pilot_led_g = DEFAULT_LED_G, .pilot_led_b = DEFAULT_LED_B,
+    };
+    eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+}
+
+static bool spam_macro_config_valid(const spam_macro_config_t *cfg) {
+    if (cfg->steer_hold_ms < 5 || cfg->steer_hold_ms > 2000) return false;
+    if (cfg->steer_tap_hold_ms < 5 || cfg->steer_tap_hold_ms > 1000) return false;
+    if (cfg->steer_gap_base < 5 || cfg->steer_gap_base > 2000) return false;
+    if (cfg->steer_gap_jitter > 500) return false;
+    if (cfg->brake_hold_ms < 5 || cfg->brake_hold_ms > 2000) return false;
+    if (cfg->brake_tap_hold_ms < 5 || cfg->brake_tap_hold_ms > 1000) return false;
+    if (cfg->brake_gap_base < 5 || cfg->brake_gap_base > 2000) return false;
+    if (cfg->brake_gap_jitter > 500) return false;
+    if (cfg->toggle_row > 5 || cfg->toggle_col > 16) return false;
+    if (cfg->pilot_toggle_row > 5 || cfg->pilot_toggle_col > 16) return false;
+    return true;
+}
+
+static void spam_macro_init(void) {
+    spam_macro_config_t cfg;
+    eeprom_read_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+
+    if (!spam_macro_config_valid(&cfg)) {
+        spam_macro_config_reset();
+        eeprom_read_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+    }
+
+    // Load timing into spam_keys array
+    spam_keys[SPAM_IDX_A].hold_ms     = cfg.steer_hold_ms;
+    spam_keys[SPAM_IDX_A].tap_hold_ms = cfg.steer_tap_hold_ms;
+    spam_keys[SPAM_IDX_A].gap_base    = cfg.steer_gap_base;
+    spam_keys[SPAM_IDX_A].gap_jitter  = cfg.steer_gap_jitter;
+    spam_keys[SPAM_IDX_D].hold_ms     = cfg.steer_hold_ms;
+    spam_keys[SPAM_IDX_D].tap_hold_ms = cfg.steer_tap_hold_ms;
+    spam_keys[SPAM_IDX_D].gap_base    = cfg.steer_gap_base;
+    spam_keys[SPAM_IDX_D].gap_jitter  = cfg.steer_gap_jitter;
+    spam_keys[SPAM_IDX_S].hold_ms     = cfg.brake_hold_ms;
+    spam_keys[SPAM_IDX_S].tap_hold_ms = cfg.brake_tap_hold_ms;
+    spam_keys[SPAM_IDX_S].gap_base    = cfg.brake_gap_base;
+    spam_keys[SPAM_IDX_S].gap_jitter  = cfg.brake_gap_jitter;
+
+    // Load toggle positions
+    toggle_row       = cfg.toggle_row;
+    toggle_col       = cfg.toggle_col;
+    pilot_toggle_row = cfg.pilot_toggle_row;
+    pilot_toggle_col = cfg.pilot_toggle_col;
+
+    // Load LED colors
+    spam_led_r  = cfg.spam_led_r;
+    spam_led_g  = cfg.spam_led_g;
+    spam_led_b  = cfg.spam_led_b;
+    pilot_led_r = cfg.pilot_led_r;
+    pilot_led_g = cfg.pilot_led_g;
+    pilot_led_b = cfg.pilot_led_b;
+}
+
+// spam_enabled/pilot_enabled deliberately not persisted — always boot OFF
+static void spam_macro_save(void) {
+    spam_macro_config_t cfg = {
+        .steer_hold_ms     = spam_keys[SPAM_IDX_A].hold_ms,
+        .steer_tap_hold_ms = spam_keys[SPAM_IDX_A].tap_hold_ms,
+        .steer_gap_base    = spam_keys[SPAM_IDX_A].gap_base,
+        .steer_gap_jitter  = spam_keys[SPAM_IDX_A].gap_jitter,
+        .brake_hold_ms     = spam_keys[SPAM_IDX_S].hold_ms,
+        .brake_tap_hold_ms = spam_keys[SPAM_IDX_S].tap_hold_ms,
+        .brake_gap_base    = spam_keys[SPAM_IDX_S].gap_base,
+        .brake_gap_jitter  = spam_keys[SPAM_IDX_S].gap_jitter,
+        .toggle_row        = (uint8_t)toggle_row,
+        .toggle_col        = (uint8_t)toggle_col,
+        .pilot_toggle_row  = (uint8_t)pilot_toggle_row,
+        .pilot_toggle_col  = (uint8_t)pilot_toggle_col,
+        .spam_led_r = (uint8_t)spam_led_r, .spam_led_g = (uint8_t)spam_led_g, .spam_led_b = (uint8_t)spam_led_b,
+        .pilot_led_r = (uint8_t)pilot_led_r, .pilot_led_g = (uint8_t)pilot_led_g, .pilot_led_b = (uint8_t)pilot_led_b,
+    };
+    eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+}
+
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [MAC_BASE] = LAYOUT_iso_88(
@@ -148,6 +275,7 @@ extern bool process_record_snap_click(uint16_t keycode, keyrecord_t *record);
 
 void keyboard_post_init_user(void) {
     srand(timer_read32());
+    spam_macro_init();
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -322,6 +450,7 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
                 }
                 break;
             case id_custom_save:
+                spam_macro_save();
                 break;
         }
         return;
@@ -342,7 +471,6 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             uint16_t val = ((uint16_t)data[3] << 8) | data[4];
             // Clamp to sane ranges
             if (value_id == SPAM_VAL_STEER_GAP_JITTER || value_id == SPAM_VAL_BRAKE_GAP_JITTER) {
-                if (val == 0) val = 1;
                 if (val > 500) val = 500;
             } else if (value_id == SPAM_VAL_STEER_TAP_HOLD || value_id == SPAM_VAL_BRAKE_TAP_HOLD) {
                 if (val < 5) val = 5;
@@ -364,7 +492,7 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             break;
         }
         case id_custom_save:
-            // Values are RAM-only; no EEPROM save needed
+            spam_macro_save();
             break;
     }
 }

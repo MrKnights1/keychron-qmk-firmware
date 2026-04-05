@@ -433,6 +433,13 @@ input[type="color"]::-webkit-color-swatch { border: none; }
 
 .btn-primary:hover:not(:disabled) { background: #33dfff; border-color: #33dfff; box-shadow: 0 0 20px var(--accent-dim); }
 
+.btn-save {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
+}
+.btn-save:hover:not(:disabled) { background: #33ffaa; border-color: #33ffaa; box-shadow: 0 0 20px var(--green-dim); }
+
 /* ── Animations ── */
 .dashboard { animation: slideUp .4s ease; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -533,7 +540,7 @@ input[type="color"]::-webkit-color-swatch { border: none; }
               <div class="field-label">Gap Jitter</div>
               <div class="field-value"><span id="v-steer-jitter">15</span> <span>ms</span></div>
             </div>
-            <input type="range" id="steer-jitter" min="1" max="50" step="1" value="15" aria-describedby="hint-steer-jitter">
+            <input type="range" id="steer-jitter" min="0" max="50" step="1" value="15" aria-describedby="hint-steer-jitter">
             <div class="hint" id="hint-steer-jitter">Randomized range for humanization</div>
           </div>
         </div>
@@ -569,7 +576,7 @@ input[type="color"]::-webkit-color-swatch { border: none; }
               <div class="field-label">Gap Jitter</div>
               <div class="field-value"><span id="v-brake-jitter">15</span> <span>ms</span></div>
             </div>
-            <input type="range" id="brake-jitter" min="1" max="50" step="1" value="15" aria-describedby="hint-brake-jitter">
+            <input type="range" id="brake-jitter" min="0" max="50" step="1" value="15" aria-describedby="hint-brake-jitter">
             <div class="hint" id="hint-brake-jitter">Randomized range for humanization</div>
           </div>
         </div>
@@ -646,6 +653,7 @@ input[type="color"]::-webkit-color-swatch { border: none; }
     <div class="actions-bar">
       <button class="btn" id="read-btn">READ</button>
       <button class="btn btn-primary" id="send-btn">SEND TO KEYBOARD</button>
+      <button class="btn btn-save" id="save-btn">SAVE TO EEPROM</button>
     </div>
 
   </div>
@@ -668,6 +676,7 @@ const VIA_USAGE = 0x61;
 const REPORT_LEN = 32;
 const CMD_GET = 0x08;
 const CMD_SET = 0x07;
+const CMD_SAVE = 0x09;
 const CHANNEL = 0x44;
 
 const VAL = {
@@ -723,6 +732,7 @@ function setBusy(isBusy) {
   busy = isBusy;
   $('read-btn').disabled = isBusy;
   $('send-btn').disabled = isBusy;
+  $('save-btn').disabled = isBusy;
 }
 
 function updateLed(id, on) {
@@ -908,28 +918,31 @@ async function readAll() {
   }
 }
 
+async function sendAllValues() {
+  for (const [key, vid] of Object.entries(VAL)) {
+    await setValue(vid, parseInt($(key).value, 10));
+  }
+  const tk = TOGGLE_KEYS[$('toggle-key').value];
+  await setValue(VAL_TOGGLE_ROW, tk.row);
+  await setValue(VAL_TOGGLE_COL, tk.col);
+  const pk = TOGGLE_KEYS[$('pilot-toggle-key').value];
+  await setValue(VAL_PILOT_TOGGLE_ROW, pk.row);
+  await setValue(VAL_PILOT_TOGGLE_COL, pk.col);
+  const sc = hexToRgb($('spam-color').value);
+  await setValue(VAL_SPAM_LED_R, sc.r);
+  await setValue(VAL_SPAM_LED_G, sc.g);
+  await setValue(VAL_SPAM_LED_B, sc.b);
+  const pc = hexToRgb($('pilot-color').value);
+  await setValue(VAL_PILOT_LED_R, pc.r);
+  await setValue(VAL_PILOT_LED_G, pc.g);
+  await setValue(VAL_PILOT_LED_B, pc.b);
+}
+
 async function sendAll() {
   if (busy) return;
   setBusy(true);
   try {
-    for (const [key, vid] of Object.entries(VAL)) {
-      await setValue(vid, parseInt($(key).value, 10));
-    }
-    const tk = TOGGLE_KEYS[$('toggle-key').value];
-    await setValue(VAL_TOGGLE_ROW, tk.row);
-    await setValue(VAL_TOGGLE_COL, tk.col);
-    const pk = TOGGLE_KEYS[$('pilot-toggle-key').value];
-    await setValue(VAL_PILOT_TOGGLE_ROW, pk.row);
-    await setValue(VAL_PILOT_TOGGLE_COL, pk.col);
-    // Send LED colors
-    const sc = hexToRgb($('spam-color').value);
-    await setValue(VAL_SPAM_LED_R, sc.r);
-    await setValue(VAL_SPAM_LED_G, sc.g);
-    await setValue(VAL_SPAM_LED_B, sc.b);
-    const pc = hexToRgb($('pilot-color').value);
-    await setValue(VAL_PILOT_LED_R, pc.r);
-    await setValue(VAL_PILOT_LED_G, pc.g);
-    await setValue(VAL_PILOT_LED_B, pc.b);
+    await sendAllValues();
     setStatus('SENT', 'connected', 1500);
   } catch (e) {
     setStatus('SEND ERROR', 'disconnected');
@@ -938,8 +951,25 @@ async function sendAll() {
   }
 }
 
+async function saveToEeprom() {
+  if (busy) return;
+  setBusy(true);
+  try {
+    await sendAllValues();
+    const resp = await sendReport(CMD_SAVE, CHANNEL, 1); // value_id is ignored for save commands
+    if (!resp) throw new Error('Timeout saving to EEPROM');
+    if (resp[0] === 0xFF) throw new Error('Firmware rejected save');
+    setStatus('SAVED TO EEPROM', 'connected', 2000);
+  } catch (e) {
+    setStatus('SAVE ERROR', 'disconnected');
+  } finally {
+    setBusy(false);
+  }
+}
+
 $('read-btn').addEventListener('click', () => { if (device) readAll(); });
 $('send-btn').addEventListener('click', () => { if (device) sendAll(); });
+$('save-btn').addEventListener('click', () => { if (device) saveToEeprom(); });
 </script>
 </body>
 </html>
