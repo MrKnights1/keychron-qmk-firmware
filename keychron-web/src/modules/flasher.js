@@ -42,6 +42,7 @@ const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let selectedFile = null;
+let inBootloaderMode = false;
 
 function log(msg) {
   const el = $('flash-log');
@@ -205,6 +206,9 @@ export function initFlasher() {
   const flashBtn = $('flash-firmware-btn');
   const fileInput = $('flash-file-input');
 
+  // Disable exit/flash until bootloader is entered
+  if (exitBootBtn) exitBootBtn.disabled = true;
+
   if (fileInput) {
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
@@ -214,7 +218,7 @@ export function initFlasher() {
         if ($('flash-file-name')) $('flash-file-name').textContent = file.name;
         if ($('flash-file-size')) $('flash-file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
         if (info) info.classList.remove('hidden');
-        if (flashBtn) flashBtn.disabled = false;
+        if (flashBtn) flashBtn.disabled = !inBootloaderMode;
       } else {
         if (info) info.classList.add('hidden');
         if (flashBtn) flashBtn.disabled = true;
@@ -232,9 +236,12 @@ export function initFlasher() {
       }
       bootloaderBtn.disabled = true;
       await enterBootloader();
+      inBootloaderMode = true;
       log('Keyboard is in DFU bootloader mode.');
       log('Use QMK Toolbox to flash, or select a .bin file above and click FLASH.');
       bootloaderBtn.disabled = false;
+      if (exitBootBtn) exitBootBtn.disabled = false;
+      if (flashBtn && selectedFile) flashBtn.disabled = false;
     });
   }
 
@@ -259,10 +266,13 @@ export function initFlasher() {
         await dfuseCmd(dev, DFUSE_SET_ADDRESS, FLASH_BASE);
         await dfuDnload(dev, 0, new ArrayBuffer(0));
         try { await dfuGetStatus(dev); } catch (_) {}
+        inBootloaderMode = false;
         log('Keyboard is rebooting with existing firmware.');
         log('Click CONNECT to reconnect.');
         const connectBtn = $('connect-btn');
         if (connectBtn) connectBtn.disabled = false;
+        if (flashBtn) flashBtn.disabled = true;
+        if (exitBootBtn) exitBootBtn.disabled = true;
       } catch (err) {
         log('ERROR: ' + err.message);
       } finally {
@@ -285,7 +295,9 @@ export function initFlasher() {
         log('Hold ESC + plug USB to re-enter bootloader, then use QMK Toolbox.');
         hideProgress();
       } finally {
-        flashBtn.disabled = !selectedFile;
+        inBootloaderMode = false;
+        flashBtn.disabled = true;
+        if (exitBootBtn) exitBootBtn.disabled = true;
         if (bootloaderBtn) bootloaderBtn.disabled = false;
       }
     });
