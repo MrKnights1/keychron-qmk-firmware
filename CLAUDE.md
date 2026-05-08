@@ -14,7 +14,7 @@
 cd /root/muud/keychron-qmk-firmware
 qmk compile -kb keychron/q3_max/iso_encoder -km spam_macro
 
-# Output: .build/keychron_q3_max_iso_encoder_spam_macro.bin
+# Output: .build/keychron_q3max_custom.bin
 
 # Init submodules (first time only)
 git submodule update --init lib/chibios lib/chibios-contrib lib/lufa lib/printf
