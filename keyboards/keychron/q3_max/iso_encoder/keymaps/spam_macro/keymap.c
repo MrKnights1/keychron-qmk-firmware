@@ -592,6 +592,10 @@ bool rgb_matrix_indicators_user(void) {
     if (host_keyboard_led_state().caps_lock) {
         rgb_matrix_set_color(50, 255, 0, 0);
     }
+    if (keymap_config.no_gui && get_highest_layer(default_layer_state) == WIN_BASE) {
+        rgb_matrix_set_color(78, 255, 0, 0);  // LWin
+        rgb_matrix_set_color(82, 255, 0, 0);  // RWin
+    }
     if (spam_enabled) {
         uint8_t r = spam_led_r, g = spam_led_g, b = spam_led_b;
         rgb_matrix_set_color(51, r, g, b);  // A
