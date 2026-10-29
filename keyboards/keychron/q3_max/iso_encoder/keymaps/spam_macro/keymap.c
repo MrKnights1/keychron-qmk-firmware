@@ -17,7 +17,6 @@
 #include QMK_KEYBOARD_H
 #include "keychron_common.h"
 #include "via.h"
-#include "eeconfig_kb.h"
 #include "eeconfig.h"
 #include "pilot_remap.h"
 #include "spam_config.h"
@@ -116,20 +115,17 @@ layer_state_t default_layer_state_set_user(layer_state_t state) {
     return state;
 }
 
-/* ── EEPROM persistence ── */
+/* ── EEPROM persistence: QMK's keymap datablock, sized in config.h ── */
 
-void spam_macro_config_reset(void) {
-    spam_macro_config_t cfg;
-    spam_config_defaults(&cfg);
-    eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
-}
+_Static_assert(sizeof(spam_macro_config_t) == EECONFIG_USER_DATA_SIZE,
+               "spam_macro_config_t size mismatch with EECONFIG_USER_DATA_SIZE");
 
 static void spam_macro_init(void) {
     spam_macro_config_t cfg;
-    eeprom_read_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+    eeconfig_read_user_datablock(&cfg, 0, sizeof(cfg));
 
     if (spam_config_load(&cfg) != SPAM_CONFIG_CURRENT) {
-        eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+        eeconfig_update_user_datablock(&cfg, 0, sizeof(cfg));
     }
 
     // Load timing into spam_keys array
@@ -182,41 +178,41 @@ static void spam_macro_save(void) {
     for (uint8_t i = 0; i < PILOT_BIND_COUNT; i++) {
         cfg.pilot_binds[i] = pilot_remap_get_binding(i);
     }
-    eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+    eeconfig_update_user_datablock(&cfg, 0, sizeof(cfg));
 }
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [MAC_BASE] = LAYOUT_iso_88(
-        KC_ESC,   KC_BRID,  KC_BRIU,  KC_MCTRL, KC_LNPAD, RGB_VAD,  RGB_VAI,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_MUTE,  KC_SNAP,  KC_SIRI,  RGB_MOD,
+        KC_ESC,   KC_BRID,  KC_BRIU,  KC_MCTRL, KC_LNPAD, UG_VALD,  UG_VALU,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_MUTE,  KC_SNAP,  KC_SIRI,  UG_NEXT,
         KC_GRV,   KC_1,     KC_2,     KC_3,     KC_4,     KC_5,     KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     KC_MINS,  KC_EQL,    KC_BSPC,  KC_INS,   KC_HOME,  KC_PGUP,
-        KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,   KC_ENT,   KC_DEL,   KC_END,   KC_PGDN,
-        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,
+        KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,             KC_DEL,   KC_END,   KC_PGDN,
+        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,  KC_ENT,
         KC_LSFT,  KC_NUBS,  KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,             KC_RSFT,            KC_UP,
         KC_LCTL,  KC_LOPTN, KC_LCMMD,                               KC_SPC,                                 KC_RCMMD, KC_ROPTN, MO(MAC_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
 
     [MAC_FN] = LAYOUT_iso_88(
-        _______,  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,    RGB_TOG,  _______,   _______, RGB_TOG,
+        _______,  KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,    UG_TOGG,  _______,   _______, UG_TOGG,
         _______,  BT_HST1,  BT_HST2,  BT_HST3,  P2P4G,    _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,   _______, _______,
-        RGB_TOG,  RGB_MOD,  RGB_VAI,  RGB_HUI,  RGB_SAI,  RGB_SPI,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,   _______, _______,
-        _______,  _______,  RGB_VAD,  RGB_HUD,  RGB_SAD,  RGB_SPD,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
+        UG_TOGG,  UG_NEXT,  UG_VALU,  UG_HUEU,  UG_SATU,  UG_SPDU,  _______,  _______,  _______,  _______,  _______,  _______,  _______,             _______,   _______, _______,
+        _______,  _______,  UG_VALD,  UG_HUED,  UG_SATD,  UG_SPDD,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
         _______,  _______,  _______,  _______,  _______,  _______,  BAT_LVL,  NK_TOGG,  _______,  _______,  _______,  _______,             _______,             _______,
         _______,  _______,  _______,                                _______,                                _______,  _______,  _______,   _______,  _______,   _______, _______),
 
     [WIN_BASE] = LAYOUT_iso_88(
         KC_ESC,   KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,    KC_MUTE,  KC_PSCR,  KC_F23,   KC_F24,
         KC_GRV,   KC_1,     KC_2,     KC_3,     KC_4,     KC_5,     KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     KC_MINS,  KC_EQL,    KC_BSPC,  KC_INS,   KC_HOME,  KC_PGUP,
-        KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,   KC_ENT,   KC_DEL,   KC_END,   KC_PGDN,
-        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,
+        KC_TAB,   KC_Q,     KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,     KC_U,     KC_I,     KC_O,     KC_P,     KC_LBRC,  KC_RBRC,             KC_DEL,   KC_END,   KC_PGDN,
+        KC_CAPS,  KC_A,     KC_S,     KC_D,     KC_F,     KC_G,     KC_H,     KC_J,     KC_K,     KC_L,     KC_SCLN,  KC_QUOT,  KC_NUHS,  KC_ENT,
         KC_LSFT,  KC_NUBS,  KC_Z,     KC_X,     KC_C,     KC_V,     KC_B,     KC_N,     KC_M,     KC_COMM,  KC_DOT,   KC_SLSH,             KC_RSFT,            KC_UP,
         KC_LCTL,  KC_LWIN,  KC_LALT,                               KC_SPC,                                  KC_RALT,  KC_RWIN,  MO(WIN_FN),KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RGHT),
 
     /* WIN_FN: Fn layer — spam toggle is position-based (configurable via web UI) */
     [WIN_FN] = LAYOUT_iso_88(
-        _______,  KC_BRID,  KC_BRIU,  KC_TASK,  KC_FILE,  RGB_VAD,  RGB_VAI,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,  RGB_TOG, _______, _______, RGB_TOG,
+        _______,  KC_BRID,  KC_BRIU,  KC_TASK,  KC_FILE,  UG_VALD,  UG_VALU,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,  UG_TOGG, _______, _______, UG_TOGG,
         _______,  BT_HST1,  BT_HST2,  BT_HST3,  P2P4G,    _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______, _______, _______, _______,
-        RGB_TOG,  _______,  RGB_VAI,  _______,  _______,  RGB_SPI,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______, _______, _______, _______,
-        _______,  _______,  RGB_VAD,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
+        UG_TOGG,  _______,  UG_VALU,  _______,  _______,  UG_SPDU,  _______,  _______,  _______,  _______,  _______,  _______,  _______,           _______, _______, _______,
+        _______,  _______,  UG_VALD,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
         _______,  _______,  _______,  _______,  _______,  _______,  BAT_LVL,  NK_TOGG,  _______,  _______,  _______,  _______,            _______,          _______,
         _______,  GU_TOGG,  _______,                                _______,                                _______,  _______,  _______,  _______, _______, _______, _______)
 };
@@ -225,26 +221,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #if defined(ENCODER_MAP_ENABLE)
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {
     [MAC_BASE] = {ENCODER_CCW_CW(KC_VOLD, KC_VOLU)},
-    [MAC_FN]   = {ENCODER_CCW_CW(RGB_VAD, RGB_VAI)},
+    [MAC_FN]   = {ENCODER_CCW_CW(UG_VALD, UG_VALU)},
     [WIN_BASE] = {ENCODER_CCW_CW(KC_VOLD, KC_VOLU)},
-    [WIN_FN]   = {ENCODER_CCW_CW(RGB_VAD, RGB_VAI)},
+    [WIN_FN]   = {ENCODER_CCW_CW(UG_VALD, UG_VALU)},
 };
 #endif // ENCODER_MAP_ENABLE
-
-#ifdef SNAP_CLICK_ENABLE
-extern bool process_record_snap_click(uint16_t keycode, keyrecord_t *record);
-#endif
 
 void keyboard_post_init_user(void) {
     srand(timer_read32());
     spam_macro_init();
 }
 
+// Runs before Keychron's handlers (keychron_common, snap click), which process_record_kb calls next.
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (!process_record_keychron_common(keycode, record)) {
-        return false;
-    }
-
     // Position-based configurable toggle: Fn + configured key
     if (record->event.key.row == toggle_row
         && record->event.key.col == toggle_col
@@ -288,12 +277,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
     }
-
-#ifdef SNAP_CLICK_ENABLE
-    if (!process_record_snap_click(keycode, record)) {
-        return false;
-    }
-#endif
 
     return true;
 }
@@ -548,7 +531,7 @@ bool rgb_matrix_indicators_user(void) {
     }
 
     if (host_keyboard_led_state().caps_lock) {
-        rgb_matrix_set_color(50, 255, 0, 0);
+        rgb_matrix_set_color(CAPS_LOCK_INDEX, 255, 0, 0);
     }
     if (keymap_config.no_gui && get_highest_layer(default_layer_state) == WIN_BASE) {
         rgb_matrix_set_color(78, 255, 0, 0);  // LWin
