@@ -13,6 +13,10 @@ const CMD_GET = 0x08;
 const CMD_SET = 0x07;
 const CMD_SAVE = 0x09;
 const CHANNEL = 0x44;
+const ID_UNHANDLED = 0xff;
+
+/** The keyboard answered id_unhandled: it doesn't know the value ID or refused the value. */
+export class FirmwareRejectedError extends Error {}
 
 /* ── Module state ── */
 let device = null;
@@ -41,8 +45,9 @@ export function isConnected() {
 function onInputReport(e) {
   if (!pending) return;
   const resp = new Uint8Array(e.data.buffer);
+  // Firmware rejects by echoing the request with byte 0 replaced by id_unhandled (0xFF).
   if (
-    resp[0] === pending.cmd &&
+    (resp[0] === pending.cmd || resp[0] === ID_UNHANDLED) &&
     resp[1] === pending.channel &&
     resp[2] === pending.valueId
   ) {
@@ -91,9 +96,11 @@ export function sendReport(cmd, channel, valueId, extraBytes) {
   return next;
 }
 
+/** @returns {Promise<number|null>} null on timeout; throws FirmwareRejectedError on id_unhandled */
 export async function getValue(valueId) {
   const resp = await sendReport(CMD_GET, CHANNEL, valueId);
-  if (!resp || resp[0] !== CMD_GET) return null;
+  if (!resp) return null;
+  if (resp[0] === ID_UNHANDLED) throw new FirmwareRejectedError('Firmware rejected value ' + valueId);
   return (resp[3] << 8) | resp[4];
 }
 
@@ -105,13 +112,13 @@ export async function setValue(valueId, val) {
     [(val >> 8) & 0xff, val & 0xff],
   );
   if (!resp) throw new Error('Timeout setting value ' + valueId);
-  if (resp[0] === 0xff) throw new Error('Firmware rejected value ' + valueId);
+  if (resp[0] === ID_UNHANDLED) throw new FirmwareRejectedError('Firmware rejected value ' + valueId);
 }
 
 export async function saveEeprom() {
   const resp = await sendReport(CMD_SAVE, CHANNEL, 1);
   if (!resp) throw new Error('Timeout saving to EEPROM');
-  if (resp[0] === 0xff) throw new Error('Firmware rejected save');
+  if (resp[0] === ID_UNHANDLED) throw new FirmwareRejectedError('Firmware rejected save');
 }
 
 /* ── Connection lifecycle ── */

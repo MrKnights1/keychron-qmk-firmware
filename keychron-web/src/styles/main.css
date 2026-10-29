@@ -483,6 +483,22 @@ input[type="color"]::-webkit-color-swatch { border: none; }
 
 .map-key.empty { visibility: hidden; }
 
+/* ── Pilot custom bindings ── */
+.bind-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* Del starts a new row so Del / End / PgDn sit together like the physical cluster */
+.bind-grid .field:nth-child(3) { grid-column: 1; }
+.bind-grid .field { margin-bottom: 0; }
+.bind-grid .field-label { display: block; margin-bottom: .4rem; }
+
+@media (max-width: 700px) {
+  .bind-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Flash tab ── */
 .flash-content {
   display: flex;

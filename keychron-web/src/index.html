@@ -165,7 +165,7 @@
         <div class="panel pilot-cfg">
           <h3>LED Color <span class="line"></span></h3>
           <div class="field">
-            <div class="field-label">Arrow key indicator when active</div>
+            <div class="field-label">Arrow and bound key indicator when active</div>
             <div class="color-field">
               <input type="color" id="pilot-color" value="#ff0000">
               <span class="color-hex" id="pilot-color-hex">#ff0000</span>
@@ -185,6 +185,35 @@
               <div class="map-key">&darr; &rarr; NUM5</div>
               <div class="map-key">&rarr; &rarr; NUM6</div>
             </div>
+          </div>
+        </div>
+
+        <div class="panel pilot-cfg" style="grid-column: 1 / -1;">
+          <h3>Custom Bindings <span class="line"></span></h3>
+          <div class="field">
+            <div class="bind-grid">
+              <div class="field">
+                <label class="field-label" for="bind-q">Q</label>
+                <select id="bind-q" aria-describedby="hint-pilot-binds"></select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="bind-e">E</label>
+                <select id="bind-e" aria-describedby="hint-pilot-binds"></select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="bind-del">Del</label>
+                <select id="bind-del" aria-describedby="hint-pilot-binds"></select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="bind-end">End</label>
+                <select id="bind-end" aria-describedby="hint-pilot-binds"></select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="bind-pgdn">PgDn</label>
+                <select id="bind-pgdn" aria-describedby="hint-pilot-binds"></select>
+              </div>
+            </div>
+            <div class="hint" id="hint-pilot-binds">Active only while pilot mode is on. Bound keys light up in the pilot LED color.</div>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "bun run build.js",
     "dev": "bun build src/app.js --outdir dist --format esm --watch",
+    "test": "bun test",
     "deploy": "bun run build && rsync -avz dist/ root@65.109.239.94:/root/keychron-web/"
   },
   "devDependencies": {

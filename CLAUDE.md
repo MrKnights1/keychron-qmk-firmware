@@ -16,8 +16,12 @@ qmk compile -kb keychron/q3_max/iso_encoder -km spam_macro
 
 # Output: .build/keychron_q3max_custom.bin
 
-# Init submodules (first time only)
-git submodule update --init lib/chibios lib/chibios-contrib lib/lufa lib/printf
+# Init submodules (first time only; googletest is for the tests)
+git submodule update --init lib/chibios lib/chibios-contrib lib/lufa lib/printf lib/googletest
+
+# Tests
+make test:keychron_spam_macro         # firmware: pilot remap, EEPROM config, modes (tests/keychron_spam_macro/)
+cd keychron-web && bun test           # web configurator (keychron-web/tests/)
 
 # Install python deps (first time only)
 pip install -r requirements.txt
@@ -41,7 +45,13 @@ Rapid-tap A/S/D keys when held (for smoother GTA V steering). Toggled with Fn+G.
 | File | Purpose |
 |------|---------|
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/keymap.c` | Custom keymap with spam macro |
+| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/pilot_remap.c` | Pilot mode remap by physical position: fixed arrows→numpad, web-bindable Q/E/Del/End/PgDn (VIA value IDs 23–27) |
+| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/config.h` | Matrix positions of the pilot keys (`PILOT_POS_*`) |
+| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/spam_config.c` | EEPROM struct, defaults, validation, migration of the pre-binding layout |
+| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/modes.c` | Spam/pilot mode rules: mutually exclusive, Windows layers only |
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/rules.mk` | Build config (VIA enabled) |
+| `tests/keychron_spam_macro/` | QMK googletest suite for `pilot_remap.c`, `spam_config.c`, `modes.c` |
+| `keychron-web/` | Web configurator + flasher (WebHID, bun) |
 | `keyboards/keychron/q3_max/iso_encoder/info.json` | Layout definition (FIXED: ISO Enter position) |
 | `keyboards/keychron/q3_max/iso_encoder/iso_encoder.c` | LED driver table + per-key RGB defaults |
 | `keyboards/keychron/q3_max/iso_encoder/config.h` | CAPS_LOCK_INDEX and RGB config |
@@ -86,15 +96,15 @@ Keychron's open-source repo has multiple issues for the Q3 Max ISO. These are al
 
 SPAM keys use `NEW_SAFE_RANGE` (Keychron's custom safe range, not QMK's `SAFE_RANGE`).
 
+**Pilot mode (Fn+H)**: arrows send NUM8/4/5/6; Q/E/Del/End/PgDn send whatever is bound in the web app (`KC_TRNS` = unchanged). Spam and pilot are mutually exclusive and both turn off on the Mac layers.
+
+- Bindings live in the spam-macro EEPROM struct (`spam_config.h`). Changing its layout requires bumping `SPAM_MACRO_CONFIG_VERSION` and deciding in `spam_config_load()` whether old bytes are migrated or reset.
+- Bindable keycodes are defined twice and must match: `pilot_binding_valid()` in `pilot_remap.c` and `KEYCODES` in `keychron-web/src/modules/keycodes.js` (the web test checks the firmware ranges).
+- Changing VIA value IDs or their meaning requires bumping `SPAM_VIA_PROTOCOL_VERSION` in `keymap.c` and `PROTOCOL_VERSION` in `configurator.js`; the web app refuses to write on a mismatch.
+
 ## Tuning
 
-In `keymap.c`:
-```c
-#define SPAM_STEER_BASE   80   // min ms between steering taps (A/D)
-#define SPAM_STEER_JITTER 90   // random range (total: 80-170ms)
-#define SPAM_BRAKE_BASE   120  // min ms between brake taps (S)
-#define SPAM_BRAKE_JITTER 100  // random range (total: 120-220ms)
-```
+Tuned live in the web configurator. Reset defaults are in `spam_config.h` (`SPAM_STEER_*`, `SPAM_BRAKE_*`).
 
 ## Recovery
 

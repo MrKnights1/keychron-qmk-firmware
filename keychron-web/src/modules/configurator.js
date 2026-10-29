@@ -12,7 +12,9 @@ import {
   isBusy,
   setBusy,
   isConnected,
+  FirmwareRejectedError,
 } from './hid.js';
+import { keycodeGroups, isValidBinding } from './keycodes.js';
 
 /* ── Value IDs (must match firmware) ── */
 const VAL = {
@@ -38,6 +40,18 @@ const VAL_SPAM_LED_B = 17;
 const VAL_PILOT_LED_R = 18;
 const VAL_PILOT_LED_G = 19;
 const VAL_PILOT_LED_B = 20;
+
+const VAL_PILOT_BIND = {
+  'bind-q': 23,
+  'bind-e': 24,
+  'bind-del': 25,
+  'bind-end': 26,
+  'bind-pgdn': 27,
+};
+
+// Must equal SPAM_VIA_PROTOCOL_VERSION in keymap.c.
+const VAL_PROTOCOL = 28;
+const PROTOCOL_VERSION = 1;
 
 /* ── Toggle-key lookup table ── */
 const TOGGLE_KEYS = [
@@ -86,6 +100,33 @@ function rgbToHex(r, g, b) {
   );
 }
 
+function populateBindingSelect(select) {
+  for (const [group, entries] of keycodeGroups()) {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = group;
+    for (const k of entries) {
+      const opt = document.createElement('option');
+      opt.value = k.code;
+      opt.textContent = k.name;
+      optgroup.appendChild(opt);
+    }
+    select.appendChild(optgroup);
+  }
+}
+
+/** @returns {boolean} false when the list doesn't offer the code; the select is left untouched */
+function selectBinding(select, code) {
+  if (!isValidBinding(code)) return false;
+  select.value = String(code);
+  return true;
+}
+
+function bindingProblem(id, code) {
+  const key = id.slice('bind-'.length).toUpperCase();
+  if (code === null) return key + ' binding';
+  return key + ' binding 0x' + code.toString(16).toUpperCase().padStart(4, '0');
+}
+
 /* ── Status / busy helpers (delegated to app.js via callbacks) ── */
 let _setStatus = () => {};
 let _setBusyUI = () => {};
@@ -116,79 +157,112 @@ export function stopPolling() {
   pollInterval = null;
 }
 
+/* ── Write lock: Send/Save only after a complete read from matching firmware ── */
+let lockReason = 'NOT READ YET';
+
+export function canWrite() {
+  return lockReason === null;
+}
+
+/** @returns {Promise<string|null>} why writes must stay locked, or null when the firmware speaks our protocol */
+async function protocolProblem() {
+  let version;
+  try {
+    version = await getValue(VAL_PROTOCOL);
+  } catch (err) {
+    if (err instanceof FirmwareRejectedError) return 'FIRMWARE OUTDATED — FLASH LATEST';
+    throw err;
+  }
+  if (version === null) return 'NO RESPONSE — PRESS READ';
+  if (version !== PROTOCOL_VERSION) {
+    return 'FIRMWARE v' + version + ', APP EXPECTS v' + PROTOCOL_VERSION;
+  }
+  return null;
+}
+
+/** @returns {Promise<boolean>} false when the position timed out or isn't in TOGGLE_KEYS */
+async function readToggle(rowId, colId, selectId) {
+  const row = await getValue(rowId);
+  const col = await getValue(colId);
+  const idx = TOGGLE_KEYS.findIndex((k) => k.row === row && k.col === col);
+  if (idx < 0) return false;
+  $(selectId).value = idx;
+  $('v-' + selectId).textContent = TOGGLE_KEYS[idx].name;
+  return true;
+}
+
+/** @returns {Promise<boolean>} false when any channel timed out */
+async function readColor(rId, gId, bId, inputId) {
+  const r = await getValue(rId);
+  const g = await getValue(gId);
+  const b = await getValue(bId);
+  if (r === null || g === null || b === null) return false;
+  const hex = rgbToHex(r, g, b);
+  $(inputId).value = hex;
+  $(inputId + '-hex').textContent = hex;
+  return true;
+}
+
 /* ── Read all values from keyboard ── */
 export async function readAll() {
   if (isBusy()) return;
   setBusy(true);
+  lockReason = 'READING';
   _setBusyUI(true);
   try {
-    let nullCount = 0;
+    const versionProblem = await protocolProblem();
+    if (versionProblem) {
+      lockReason = versionProblem;
+      _setStatus(versionProblem, 'disconnected');
+      return;
+    }
+
+    // A value that timed out or that the UI can't show would be overwritten by the next write.
+    const unread = [];
+
     for (const [key, vid] of Object.entries(VAL)) {
       const val = await getValue(vid);
       if (val !== null) {
         $(key).value = val;
         $('v-' + key).textContent = $(key).value;
       } else {
-        nullCount++;
+        unread.push(key);
       }
     }
 
     const spamOn = await getValue(VAL_ENABLED);
     if (spamOn !== null) _updateLed('spam-led', spamOn !== 0);
-
-    const tRow = await getValue(VAL_TOGGLE_ROW);
-    const tCol = await getValue(VAL_TOGGLE_COL);
-    if (tRow !== null && tCol !== null) {
-      const idx = TOGGLE_KEYS.findIndex(
-        (k) => k.row === tRow && k.col === tCol,
-      );
-      if (idx >= 0) {
-        $('toggle-key').value = idx;
-        $('v-toggle-key').textContent = TOGGLE_KEYS[idx].name;
-      }
-    }
-
     const pilotOn = await getValue(VAL_PILOT_ENABLED);
     if (pilotOn !== null) _updateLed('pilot-led', pilotOn !== 0);
 
-    const pRow = await getValue(VAL_PILOT_TOGGLE_ROW);
-    const pCol = await getValue(VAL_PILOT_TOGGLE_COL);
-    if (pRow !== null && pCol !== null) {
-      const idx = TOGGLE_KEYS.findIndex(
-        (k) => k.row === pRow && k.col === pCol,
-      );
-      if (idx >= 0) {
-        $('pilot-toggle-key').value = idx;
-        $('v-pilot-toggle-key').textContent = TOGGLE_KEYS[idx].name;
-      }
+    if (!(await readToggle(VAL_TOGGLE_ROW, VAL_TOGGLE_COL, 'toggle-key'))) {
+      unread.push('spam toggle');
+    }
+    if (!(await readToggle(VAL_PILOT_TOGGLE_ROW, VAL_PILOT_TOGGLE_COL, 'pilot-toggle-key'))) {
+      unread.push('pilot toggle');
+    }
+    if (!(await readColor(VAL_SPAM_LED_R, VAL_SPAM_LED_G, VAL_SPAM_LED_B, 'spam-color'))) {
+      unread.push('spam colour');
+    }
+    if (!(await readColor(VAL_PILOT_LED_R, VAL_PILOT_LED_G, VAL_PILOT_LED_B, 'pilot-color'))) {
+      unread.push('pilot colour');
     }
 
-    // Read LED colors
-    const sr = await getValue(VAL_SPAM_LED_R);
-    const sg = await getValue(VAL_SPAM_LED_G);
-    const sb = await getValue(VAL_SPAM_LED_B);
-    if (sr !== null && sg !== null && sb !== null) {
-      const hex = rgbToHex(sr, sg, sb);
-      $('spam-color').value = hex;
-      $('spam-color-hex').textContent = hex;
+    for (const [id, vid] of Object.entries(VAL_PILOT_BIND)) {
+      const code = await getValue(vid);
+      if (code === null || !selectBinding($(id), code)) unread.push(bindingProblem(id, code));
     }
 
-    const pr = await getValue(VAL_PILOT_LED_R);
-    const pg = await getValue(VAL_PILOT_LED_G);
-    const pb = await getValue(VAL_PILOT_LED_B);
-    if (pr !== null && pg !== null && pb !== null) {
-      const hex = rgbToHex(pr, pg, pb);
-      $('pilot-color').value = hex;
-      $('pilot-color-hex').textContent = hex;
-    }
-
-    if (nullCount > 0) {
-      _setStatus('PARTIAL READ (' + nullCount + ' values timed out)', 'disconnected', 3000);
+    if (unread.length > 0) {
+      lockReason = 'READ INCOMPLETE (' + unread.join(', ') + ') — PRESS READ';
+      _setStatus(lockReason, 'disconnected');
     } else {
+      lockReason = null;
       _setStatus('SYNCED', 'connected', 1500);
     }
   } catch (err) {
     console.error('readAll error:', err);
+    lockReason = 'READ ERROR — PRESS READ';
     _setStatus('READ ERROR', 'disconnected');
   } finally {
     setBusy(false);
@@ -219,10 +293,18 @@ async function sendAllValues() {
   await setValue(VAL_PILOT_LED_R, pc.r);
   await setValue(VAL_PILOT_LED_G, pc.g);
   await setValue(VAL_PILOT_LED_B, pc.b);
+
+  for (const [id, vid] of Object.entries(VAL_PILOT_BIND)) {
+    await setValue(vid, parseInt($(id).value, 10));
+  }
 }
 
 export async function sendAll() {
   if (isBusy()) return;
+  if (!canWrite()) {
+    _setStatus(lockReason, 'disconnected');
+    return;
+  }
   setBusy(true);
   _setBusyUI(true);
   try {
@@ -240,6 +322,10 @@ export async function sendAll() {
 /* ── Send + persist to EEPROM ── */
 export async function saveToEeprom() {
   if (isBusy()) return;
+  if (!canWrite()) {
+    _setStatus(lockReason, 'disconnected');
+    return;
+  }
   setBusy(true);
   _setBusyUI(true);
   try {
@@ -270,6 +356,8 @@ export function initConfigurator({ setStatus, setBusyUI, updateLed }) {
       $(selId).appendChild(opt);
     });
   });
+
+  Object.keys(VAL_PILOT_BIND).forEach((id) => populateBindingSelect($(id)));
 
   // Default pilot toggle to H
   const hIdx = TOGGLE_KEYS.findIndex((k) => k.name === 'H');

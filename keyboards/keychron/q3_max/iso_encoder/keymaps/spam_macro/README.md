@@ -25,6 +25,17 @@ When driving in GTA V, holding a steering key (A or D) makes the car turn at ful
 
 Braking (S) uses a slower interval than steering (A/D) because brake tapping needs to be gentler.
 
+### Pilot Mode
+
+**Fn + H** toggles pilot mode for GTA V flying. The arrows send Num 8/4/5/6, and the physical Q, E, Del, End and PgDn keys send whatever is bound to them in the web configurator ("Default" leaves the key unchanged). Remaps follow the physical key (positions in `config.h`), not the keycode, so the indicator LEDs always match.
+
+- Spam and pilot mode are mutually exclusive: turning one on turns the other off.
+- Both modes turn off when the OS switch selects the Mac layers, since their toggles only exist on the Windows Fn layer.
+
+### Web Configurator Protocol
+
+The web configurator talks to the keyboard over VIA custom channel `0x44`. Value ID 28 reports the protocol version (`SPAM_VIA_PROTOCOL_VERSION` in `keymap.c`); the web app refuses to send or save when it doesn't match, so bump it whenever value IDs or their meaning change. Saved settings that predate pilot bindings are migrated on first boot; bindings start unbound.
+
 ### Technical Details
 
 The macro uses QMK's `process_record_user` to intercept A/S/D keypresses and `matrix_scan_user` as a timer loop to send repeated taps. Each tap generates a new random interval using `rand()` seeded with `timer_read32()` at boot. The `tap_code_delay()` function is used with a 10ms hold time to ensure games register each keypress.
@@ -135,6 +146,17 @@ Compare your compiled `.bin` size with the stock firmware:
 
 If the size is significantly different (e.g. 48KB), something went wrong with the board selection.
 
+## Testing
+
+```bash
+# Firmware: pilot remap, saved-settings migration, mode switching (QMK googletest harness, needs the submodule once)
+git submodule update --init lib/googletest
+make test:keychron_spam_macro
+
+# Web configurator (keychron-web/)
+cd keychron-web && bun test
+```
+
 ## Patches Explained
 
 `patches/q3_max_v110_fixes.patch` fixes issues in Keychron's open-source repo that prevent the Q3 Max ISO from compiling correctly with v1.1.0 features:
@@ -151,23 +173,14 @@ If the size is significantly different (e.g. 48KB), something went wrong with th
 
 ## Tuning the Intervals
 
-Edit these values in `keymap/keymap.c` and recompile:
+Timings are tuned live in the web configurator and saved to EEPROM. The defaults used after a reset are in `spam_config.h`:
 
 ```c
-#define SPAM_STEER_BASE   80   // min ms between steering taps
-#define SPAM_STEER_JITTER 90   // random range added (total: 80-170ms)
-#define SPAM_BRAKE_BASE   120  // min ms between brake taps
-#define SPAM_BRAKE_JITTER 100  // random range added (total: 120-220ms)
+#define SPAM_STEER_HOLD       200   // ms initial hold (full wheel turn)
+#define SPAM_STEER_TAP_HOLD   80    // ms each tap is held down
+#define SPAM_STEER_GAP_BASE   15    // ms gap between taps (key released)
+#define SPAM_STEER_GAP_JITTER 15    // randomized gap range (total: 15-30ms)
 ```
-
-### Tuning Guide
-
-| Style | STEER_BASE | STEER_JITTER | Feel |
-|-------|------------|--------------|------|
-| Aggressive | 50 | 60 | Fast turns, still some sliding |
-| Balanced | 80 | 90 | Good for most cars |
-| Smooth | 120 | 100 | Gentle turns, slow response |
-| Realistic | 150 | 150 | Closest to human tapping |
 
 ## Recovery / Restoring Stock Firmware
 

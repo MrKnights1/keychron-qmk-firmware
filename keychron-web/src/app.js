@@ -5,6 +5,7 @@
 
 import { connect, isConnected, getValue } from './modules/hid.js';
 import {
+  canWrite,
   initConfigurator,
   readAll,
   sendAll,
@@ -34,8 +35,8 @@ function setStatus(msg, className, revertMs) {
 /* ── Busy state (disables action buttons) ── */
 function setBusyUI(isBusy) {
   $('read-btn').disabled = isBusy;
-  $('send-btn').disabled = isBusy;
-  $('save-btn').disabled = isBusy;
+  $('send-btn').disabled = isBusy || !canWrite();
+  $('save-btn').disabled = isBusy || !canWrite();
 }
 
 /* ── LED indicator ── */

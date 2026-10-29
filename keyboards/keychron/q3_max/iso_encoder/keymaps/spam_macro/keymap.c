@@ -19,6 +19,9 @@
 #include "via.h"
 #include "eeconfig_kb.h"
 #include "eeconfig.h"
+#include "pilot_remap.h"
+#include "spam_config.h"
+#include "modes.h"
 #include <stdlib.h>
 #ifdef LK_WIRELESS_ENABLE
 #    include "battery.h"
@@ -31,42 +34,14 @@ enum layers {
     WIN_FN,
 };
 
-/* ── EEPROM-backed configuration ── */
-typedef struct __attribute__((__packed__)) {
-    uint16_t steer_hold_ms;
-    uint16_t steer_tap_hold_ms;
-    uint16_t steer_gap_base;
-    uint16_t steer_gap_jitter;
-    uint16_t brake_hold_ms;
-    uint16_t brake_tap_hold_ms;
-    uint16_t brake_gap_base;
-    uint16_t brake_gap_jitter;
-    uint8_t  toggle_row;
-    uint8_t  toggle_col;
-    uint8_t  pilot_toggle_row;
-    uint8_t  pilot_toggle_col;
-    uint8_t  spam_led_r, spam_led_g, spam_led_b;
-    uint8_t  pilot_led_r, pilot_led_g, pilot_led_b;
-} spam_macro_config_t;
+// Both modes boot OFF; deliberately not persisted.
+static modes_t modes = {0};
 
-_Static_assert(sizeof(spam_macro_config_t) == EECONFIG_SIZE_SPAM_MACRO,
-               "spam_macro_config_t size mismatch with EECONFIG_SIZE_SPAM_MACRO");
-
-#define DEFAULT_SPAM_TOGGLE_ROW   3  // G key [3,5]
-#define DEFAULT_SPAM_TOGGLE_COL   5
-#define DEFAULT_PILOT_TOGGLE_ROW  3  // H key [3,6]
-#define DEFAULT_PILOT_TOGGLE_COL  6
-#define DEFAULT_LED_R  255
-#define DEFAULT_LED_G  0
-#define DEFAULT_LED_B  0
-
-static bool spam_enabled = false;
 // uint16_t required — spam_value_ptr() returns uint16_t* for VIA protocol.
 // VIA clamp ensures values fit in uint8_t for EEPROM save.
 static uint16_t toggle_row = DEFAULT_SPAM_TOGGLE_ROW;
 static uint16_t toggle_col = DEFAULT_SPAM_TOGGLE_COL;
 
-static bool pilot_enabled = false;
 static uint16_t pilot_toggle_row = DEFAULT_PILOT_TOGGLE_ROW;
 static uint16_t pilot_toggle_col = DEFAULT_PILOT_TOGGLE_COL;
 
@@ -78,20 +53,6 @@ static bool     flash_on    = false;
 #define FLASH_DURATION_MS 300
 
 enum spam_key_idx { SPAM_IDX_A, SPAM_IDX_D, SPAM_IDX_S };
-
-/*
- * Phase 1 (initial hold): key held down for HOLD_MS so wheels reach full lock
- * Phase 2 (tap cycle):    hold for TAP_HOLD_MS, release for GAP_MS, repeat
- */
-#define SPAM_STEER_HOLD       200   // ms initial hold (full wheel turn)
-#define SPAM_STEER_TAP_HOLD   80    // ms each tap is held down
-#define SPAM_STEER_GAP_BASE   15    // ms gap between taps (key released)
-#define SPAM_STEER_GAP_JITTER 15    // randomized gap range (total: 15-30ms)
-
-#define SPAM_BRAKE_HOLD       150   // ms initial hold
-#define SPAM_BRAKE_TAP_HOLD   60    // ms each brake tap held down
-#define SPAM_BRAKE_GAP_BASE   20    // ms gap between brake taps
-#define SPAM_BRAKE_GAP_JITTER 15    // randomized gap range (total: 20-35ms)
 
 typedef struct {
     bool     active;
@@ -119,7 +80,7 @@ static uint16_t randomized_gap(spam_key_t *key) {
 }
 
 static void spam_key_press(spam_key_t *key) {
-    if (spam_enabled) {
+    if (modes.spam) {
         register_code(key->keycode);   // hold key down to start turning
         key->active = true;
         key->phase  = 0;               // initial hold phase
@@ -135,49 +96,40 @@ static void spam_key_release(spam_key_t *key) {
     unregister_code(key->keycode);
 }
 
+static void release_spam_keys(void) {
+    for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
+        if (spam_keys[i].active) spam_key_release(&spam_keys[i]);
+    }
+}
+
+// Every mode change goes through here so keys held by a mode being switched off are released.
+static void apply_modes(modes_t next, layer_state_t default_state) {
+    next = modes_on_default_layer(next, get_highest_layer(default_state) == WIN_BASE);
+    if (modes.spam && !next.spam) release_spam_keys();
+    if (modes.pilot && !next.pilot) pilot_remap_release_all();
+    modes = next;
+}
+
+layer_state_t default_layer_state_set_user(layer_state_t state) {
+    // default_layer_state still holds the previous layer here.
+    apply_modes(modes, state);
+    return state;
+}
+
 /* ── EEPROM persistence ── */
 
 void spam_macro_config_reset(void) {
-    spam_macro_config_t cfg = {
-        .steer_hold_ms     = SPAM_STEER_HOLD,
-        .steer_tap_hold_ms = SPAM_STEER_TAP_HOLD,
-        .steer_gap_base    = SPAM_STEER_GAP_BASE,
-        .steer_gap_jitter  = SPAM_STEER_GAP_JITTER,
-        .brake_hold_ms     = SPAM_BRAKE_HOLD,
-        .brake_tap_hold_ms = SPAM_BRAKE_TAP_HOLD,
-        .brake_gap_base    = SPAM_BRAKE_GAP_BASE,
-        .brake_gap_jitter  = SPAM_BRAKE_GAP_JITTER,
-        .toggle_row        = DEFAULT_SPAM_TOGGLE_ROW,
-        .toggle_col        = DEFAULT_SPAM_TOGGLE_COL,
-        .pilot_toggle_row  = DEFAULT_PILOT_TOGGLE_ROW,
-        .pilot_toggle_col  = DEFAULT_PILOT_TOGGLE_COL,
-        .spam_led_r = DEFAULT_LED_R, .spam_led_g = DEFAULT_LED_G, .spam_led_b = DEFAULT_LED_B,
-        .pilot_led_r = DEFAULT_LED_R, .pilot_led_g = DEFAULT_LED_G, .pilot_led_b = DEFAULT_LED_B,
-    };
+    spam_macro_config_t cfg;
+    spam_config_defaults(&cfg);
     eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
-}
-
-static bool spam_macro_config_valid(const spam_macro_config_t *cfg) {
-    if (cfg->steer_hold_ms < 5 || cfg->steer_hold_ms > 2000) return false;
-    if (cfg->steer_tap_hold_ms < 5 || cfg->steer_tap_hold_ms > 1000) return false;
-    if (cfg->steer_gap_base < 5 || cfg->steer_gap_base > 2000) return false;
-    if (cfg->steer_gap_jitter > 500) return false;
-    if (cfg->brake_hold_ms < 5 || cfg->brake_hold_ms > 2000) return false;
-    if (cfg->brake_tap_hold_ms < 5 || cfg->brake_tap_hold_ms > 1000) return false;
-    if (cfg->brake_gap_base < 5 || cfg->brake_gap_base > 2000) return false;
-    if (cfg->brake_gap_jitter > 500) return false;
-    if (cfg->toggle_row > 5 || cfg->toggle_col > 16) return false;
-    if (cfg->pilot_toggle_row > 5 || cfg->pilot_toggle_col > 16) return false;
-    return true;
 }
 
 static void spam_macro_init(void) {
     spam_macro_config_t cfg;
     eeprom_read_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
 
-    if (!spam_macro_config_valid(&cfg)) {
-        spam_macro_config_reset();
-        eeprom_read_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
+    if (spam_config_load(&cfg) != SPAM_CONFIG_CURRENT) {
+        eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
     }
 
     // Load timing into spam_keys array
@@ -209,7 +161,6 @@ static void spam_macro_init(void) {
     pilot_led_b = cfg.pilot_led_b;
 }
 
-// spam_enabled/pilot_enabled deliberately not persisted — always boot OFF
 static void spam_macro_save(void) {
     spam_macro_config_t cfg = {
         .steer_hold_ms     = spam_keys[SPAM_IDX_A].hold_ms,
@@ -226,7 +177,11 @@ static void spam_macro_save(void) {
         .pilot_toggle_col  = (uint8_t)pilot_toggle_col,
         .spam_led_r = (uint8_t)spam_led_r, .spam_led_g = (uint8_t)spam_led_g, .spam_led_b = (uint8_t)spam_led_b,
         .pilot_led_r = (uint8_t)pilot_led_r, .pilot_led_g = (uint8_t)pilot_led_g, .pilot_led_b = (uint8_t)pilot_led_b,
+        .version           = SPAM_MACRO_CONFIG_VERSION,
     };
+    for (uint8_t i = 0; i < PILOT_BIND_COUNT; i++) {
+        cfg.pilot_binds[i] = pilot_remap_get_binding(i);
+    }
     eeprom_update_block(&cfg, (uint8_t *)(EECONFIG_BASE_SPAM_MACRO), sizeof(cfg));
 }
 
@@ -295,16 +250,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         && record->event.key.col == toggle_col
         && layer_state_is(WIN_FN)) {
         if (record->event.pressed) {
-            spam_enabled = !spam_enabled;
+            apply_modes(modes_set_spam(modes, !modes.spam), default_layer_state);
             flash_timer = timer_read32();
-            flash_on    = spam_enabled;
-            if (!spam_enabled) {
-                for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
-                    if (spam_keys[i].active) {
-                        spam_key_release(&spam_keys[i]);
-                    }
-                }
-            }
+            flash_on    = modes.spam;
         }
         return false; // swallow both press and release
     }
@@ -314,41 +262,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         && record->event.key.col == pilot_toggle_col
         && layer_state_is(WIN_FN)) {
         if (record->event.pressed) {
-            pilot_enabled = !pilot_enabled;
+            apply_modes(modes_set_pilot(modes, !modes.pilot), default_layer_state);
             flash_timer = timer_read32();
-            flash_on    = pilot_enabled;
-            if (!pilot_enabled) {
-                unregister_code(KC_P8);
-                unregister_code(KC_P4);
-                unregister_code(KC_P5);
-                unregister_code(KC_P6);
-            }
+            flash_on    = modes.pilot;
         }
         return false;
     }
 
-    // Pilot mode: remap arrows to numpad for GTA V flying
-    if (pilot_enabled) {
-        uint16_t replacement = 0;
-        switch (keycode) {
-            case KC_UP:   replacement = KC_P8; break;
-            case KC_LEFT: replacement = KC_P4; break;
-            case KC_DOWN: replacement = KC_P5; break;
-            case KC_RGHT: replacement = KC_P6; break;
-        }
-        if (replacement) {
-            if (record->event.pressed) {
-                register_code(replacement);
-            } else {
-                unregister_code(replacement);
-            }
-            return false;
-        }
+    // Pilot mode: arrows to numpad for GTA V flying, plus user-bound Q/E/Del/End/PgDn
+    if (!process_pilot_remap(record, modes.pilot)) {
+        return false;
     }
 
     // When spam is enabled, intercept A/S/D for the spam macro.
     // When spam is off, they pass through to Snap Click and normal processing.
-    if (spam_enabled) {
+    if (modes.spam) {
         for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
             if (keycode == spam_keys[i].keycode) {
                 if (record->event.pressed) {
@@ -396,7 +324,19 @@ enum spam_value_id {
     PILOT_LED_B,              // 20
     SPAM_VAL_BOOTLOADER,      // 21
     SPAM_VAL_BATTERY,         // 22
+    PILOT_VAL_BIND_Q,         // 23
+    PILOT_VAL_BIND_E,         // 24
+    PILOT_VAL_BIND_DEL,       // 25
+    PILOT_VAL_BIND_END,       // 26
+    PILOT_VAL_BIND_PGDN,      // 27
+    SPAM_VAL_PROTOCOL,        // 28
 };
+
+// Bump when value IDs or their meaning change; the web app refuses to write on a mismatch.
+#define SPAM_VIA_PROTOCOL_VERSION 1
+
+_Static_assert(PILOT_VAL_BIND_PGDN - PILOT_VAL_BIND_Q + 1 == PILOT_BIND_COUNT,
+               "VIA pilot bind IDs must cover every pilot_bind_slot");
 
 static uint16_t *spam_value_ptr(uint8_t value_id) {
     switch (value_id) {
@@ -468,27 +408,45 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
         return;
     }
 
+    if (value_id == SPAM_VAL_PROTOCOL) {
+        if (*command_id == id_custom_get_value) {
+            data[3] = 0;
+            data[4] = SPAM_VIA_PROTOCOL_VERSION;
+        } else {
+            *command_id = id_unhandled;
+        }
+        return;
+    }
+
     // Handle bool values separately (not uint16_t)
     if (value_id == SPAM_VAL_ENABLED || value_id == PILOT_VAL_ENABLED) {
-        bool *flag = (value_id == SPAM_VAL_ENABLED) ? &spam_enabled : &pilot_enabled;
+        bool is_spam = value_id == SPAM_VAL_ENABLED;
         switch (*command_id) {
             case id_custom_get_value:
                 data[3] = 0;
-                data[4] = *flag ? 1 : 0;
+                data[4] = (is_spam ? modes.spam : modes.pilot) ? 1 : 0;
+                break;
+            case id_custom_set_value: {
+                bool on = data[4] != 0;
+                apply_modes(is_spam ? modes_set_spam(modes, on) : modes_set_pilot(modes, on), default_layer_state);
+                break;
+            }
+            case id_custom_save:
+                spam_macro_save();
+                break;
+        }
+        return;
+    }
+
+    // Pilot bindings: 16-bit keycodes, rejected (not clamped) when invalid
+    if (value_id >= PILOT_VAL_BIND_Q && value_id <= PILOT_VAL_BIND_PGDN) {
+        uint8_t slot = value_id - PILOT_VAL_BIND_Q;
+        switch (*command_id) {
+            case id_custom_get_value:
+                if (!pilot_remap_via_get(slot, &data[3])) *command_id = id_unhandled;
                 break;
             case id_custom_set_value:
-                *flag = data[4] != 0;
-                if (value_id == SPAM_VAL_ENABLED && !spam_enabled) {
-                    for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
-                        if (spam_keys[i].active) spam_key_release(&spam_keys[i]);
-                    }
-                }
-                if (value_id == PILOT_VAL_ENABLED && !pilot_enabled) {
-                    unregister_code(KC_P8);
-                    unregister_code(KC_P4);
-                    unregister_code(KC_P5);
-                    unregister_code(KC_P6);
-                }
+                if (!pilot_remap_via_set(slot, &data[3])) *command_id = id_unhandled;
                 break;
             case id_custom_save:
                 spam_macro_save();
@@ -539,7 +497,7 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
 }
 
 void matrix_scan_user(void) {
-    if (!spam_enabled) return;
+    if (!modes.spam) return;
     for (uint8_t i = 0; i < SPAM_KEY_COUNT; i++) {
         spam_key_t *key = &spam_keys[i];
         if (!key->active) continue;
@@ -596,18 +554,20 @@ bool rgb_matrix_indicators_user(void) {
         rgb_matrix_set_color(78, 255, 0, 0);  // LWin
         rgb_matrix_set_color(82, 255, 0, 0);  // RWin
     }
-    if (spam_enabled) {
+    if (modes.spam) {
         uint8_t r = spam_led_r, g = spam_led_g, b = spam_led_b;
         rgb_matrix_set_color(51, r, g, b);  // A
         rgb_matrix_set_color(52, r, g, b);  // S
         rgb_matrix_set_color(53, r, g, b);  // D
     }
-    if (pilot_enabled) {
-        uint8_t r = pilot_led_r, g = pilot_led_g, b = pilot_led_b;
-        rgb_matrix_set_color(76, r, g, b);  // Up
-        rgb_matrix_set_color(85, r, g, b);  // Left
-        rgb_matrix_set_color(86, r, g, b);  // Down
-        rgb_matrix_set_color(87, r, g, b);  // Right
+    if (modes.pilot) {
+        uint8_t  r = pilot_led_r, g = pilot_led_g, b = pilot_led_b;
+        keypos_t lit[PILOT_KEY_COUNT];
+        uint8_t  count = pilot_remap_lit_keys(lit);
+        for (uint8_t i = 0; i < count; i++) {
+            uint8_t led = g_led_config.matrix_co[lit[i].row][lit[i].col];
+            if (led != NO_LED) rgb_matrix_set_color(led, r, g, b);
+        }
     }
     return true;
 }
