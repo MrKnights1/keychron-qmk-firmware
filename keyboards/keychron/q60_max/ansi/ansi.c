@@ -1,17 +1,17 @@
-/* Copyright 2023 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2026 @ Keychron (https://www.keychron.com)
  *
- * This program is free software : you can redistribute it and /or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.If not, see < http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
@@ -20,76 +20,76 @@
 
 #ifdef RGB_MATRIX_ENABLE
 const snled27351_led_t g_snled27351_leds[RGB_MATRIX_LED_COUNT] = {
-/* Refer to snled27351manual for these locations
+/* Refer to SNLED27351 manual for these locations
  *   driver
  *   |  R location
- *   |  |       G location
- *   |  |       |       B location
- *   |  |       |       | */
-    {0, J_15,   L_15,   K_15},
-    {0, J_14,   L_14,   K_14},
-    {0, J_13,   L_13,   K_13},
-    {0, J_12,   L_12,   K_12},
-    {0, J_11,   L_11,   K_11},
-    {0, J_10,   L_10,   K_10},
-    {0, J_9,    L_9,    K_9},
-    {0, J_8,    L_8,    K_8},
-    {0, J_7,    L_7,    K_7},
-    {0, J_6,    L_6,    K_6},
-    {0, J_5,    L_5,    K_5},
-    {0, J_4,    L_4,    K_4},
-    {0, J_3,    L_3,    K_3},
-    {0, J_2,    L_2,    K_2},
-    {0, J_1,    L_1,    K_1},
+ *   |  |           G location
+ *   |  |           |           B location
+ *   |  |           |           | */
+    {0, CB10_CA15,  CB12_CA15,  CB11_CA15},
+    {0, CB10_CA14,  CB12_CA14,  CB11_CA14},
+    {0, CB10_CA13,  CB12_CA13,  CB11_CA13},
+    {0, CB10_CA12,  CB12_CA12,  CB11_CA12},
+    {0, CB10_CA11,  CB12_CA11,  CB11_CA11},
+    {0, CB10_CA10,  CB12_CA10,  CB11_CA10},
+    {0, CB10_CA9,   CB12_CA9,   CB11_CA9},
+    {0, CB10_CA8,   CB12_CA8,   CB11_CA8},
+    {0, CB10_CA7,   CB12_CA7,   CB11_CA7},
+    {0, CB10_CA6,   CB12_CA6,   CB11_CA6},
+    {0, CB10_CA5,   CB12_CA5,   CB11_CA5},
+    {0, CB10_CA4,   CB12_CA4,   CB11_CA4},
+    {0, CB10_CA3,   CB12_CA3,   CB11_CA3},
+    {0, CB10_CA2,   CB12_CA2,   CB11_CA2},
+    {0, CB10_CA1,   CB12_CA1,   CB11_CA1},
 
-    {0, D_15,   F_15,   E_15},
-    {0, D_14,   F_14,   E_14},
-    {0, D_13,   F_13,   E_13},
-    {0, D_12,   F_12,   E_12},
-    {0, D_11,   F_11,   E_11},
-    {0, D_10,   F_10,   E_10},
-    {0, D_9,    F_9,    E_9},
-    {0, D_8,    F_8,    E_8},
-    {0, D_7,    F_7,    E_7},
-    {0, D_6,    F_6,    E_6},
-    {0, D_5,    F_5,    E_5},
-    {0, D_4,    F_4,    E_4},
-    {0, D_3,    F_3,    E_3},
-    {0, D_2,    F_2,    E_2},
+    {0, CB4_CA15,   CB6_CA15,   CB5_CA15},
+    {0, CB4_CA14,   CB6_CA14,   CB5_CA14},
+    {0, CB4_CA13,   CB6_CA13,   CB5_CA13},
+    {0, CB4_CA12,   CB6_CA12,   CB5_CA12},
+    {0, CB4_CA11,   CB6_CA11,   CB5_CA11},
+    {0, CB4_CA10,   CB6_CA10,   CB5_CA10},
+    {0, CB4_CA9,    CB6_CA9,    CB5_CA9},
+    {0, CB4_CA8,    CB6_CA8,    CB5_CA8},
+    {0, CB4_CA7,    CB6_CA7,    CB5_CA7},
+    {0, CB4_CA6,    CB6_CA6,    CB5_CA6},
+    {0, CB4_CA5,    CB6_CA5,    CB5_CA5},
+    {0, CB4_CA4,    CB6_CA4,    CB5_CA4},
+    {0, CB4_CA3,    CB6_CA3,    CB5_CA3},
+    {0, CB4_CA2,    CB6_CA2,    CB5_CA2},
 
-    {0, A_15,   C_15,   B_15},
-    {0, A_14,   C_14,   B_14},
-    {0, A_13,   C_13,   B_13},
-    {0, A_12,   C_12,   B_12},
-    {0, A_11,   C_11,   B_11},
-    {0, A_10,   C_10,   B_10},
-    {0, A_9,    C_9,    B_9},
-    {0, A_8,    C_8,    B_8},
-    {0, A_7,    C_7,    B_7},
-    {0, A_6,    C_6,    B_6},
-    {0, A_5,    C_5,    B_5},
-    {0, A_4,    C_4,    B_4},
-    {0, A_3,    C_3,    B_3},
+    {0, CB1_CA15,   CB3_CA15,   CB2_CA15},
+    {0, CB1_CA14,   CB3_CA14,   CB2_CA14},
+    {0, CB1_CA13,   CB3_CA13,   CB2_CA13},
+    {0, CB1_CA12,   CB3_CA12,   CB2_CA12},
+    {0, CB1_CA11,   CB3_CA11,   CB2_CA11},
+    {0, CB1_CA10,   CB3_CA10,   CB2_CA10},
+    {0, CB1_CA9,    CB3_CA9,    CB2_CA9},
+    {0, CB1_CA8,    CB3_CA8,    CB2_CA8},
+    {0, CB1_CA7,    CB3_CA7,    CB2_CA7},
+    {0, CB1_CA6,    CB3_CA6,    CB2_CA6},
+    {0, CB1_CA5,    CB3_CA5,    CB2_CA5},
+    {0, CB1_CA4,    CB3_CA4,    CB2_CA4},
+    {0, CB1_CA3,    CB3_CA3,    CB2_CA3},
 
-    {0, G_15,   I_15,   H_15},
-    {0, G_13,   I_13,   H_13},
-    {0, G_12,   I_12,   H_12},
-    {0, G_11,   I_11,   H_11},
-    {0, G_10,   I_10,   H_10},
-    {0, G_9,    I_9,    H_9},
-    {0, G_8,    I_8,    H_8},
-    {0, G_7,    I_7,    H_7},
-    {0, G_6,    I_6,    H_6},
-    {0, G_5,    I_5,    H_5},
-    {0, G_4,    I_4,    H_4},
-    {0, G_3,    I_3,    H_3},
-    {0, G_2,    I_2,    H_2},
+    {0, CB7_CA15,   CB9_CA15,   CB8_CA15},
+    {0, CB7_CA13,   CB9_CA13,   CB8_CA13},
+    {0, CB7_CA12,   CB9_CA12,   CB8_CA12},
+    {0, CB7_CA11,   CB9_CA11,   CB8_CA11},
+    {0, CB7_CA10,   CB9_CA10,   CB8_CA10},
+    {0, CB7_CA9,    CB9_CA9,    CB8_CA9},
+    {0, CB7_CA8,    CB9_CA8,    CB8_CA8},
+    {0, CB7_CA7,    CB9_CA7,    CB8_CA7},
+    {0, CB7_CA6,    CB9_CA6,    CB8_CA6},
+    {0, CB7_CA5,    CB9_CA5,    CB8_CA5},
+    {0, CB7_CA4,    CB9_CA4,    CB8_CA4},
+    {0, CB7_CA3,    CB9_CA3,    CB8_CA3},
+    {0, CB7_CA2,    CB9_CA2,    CB8_CA2},
 
-    {0, A_16,   C_16,   B_16},
-    {0, G_16,   I_16,   H_16},
-    {0, G_1,    I_1,    H_1},
-    {0, D_1,    F_1,    E_1},
-    {0, A_1,    C_1,    B_1},
+    {0, CB1_CA16,   CB3_CA16,   CB2_CA16},
+    {0, CB7_CA16,   CB9_CA16,   CB8_CA16},
+    {0, CB7_CA1,    CB9_CA1,    CB8_CA1},
+    {0, CB4_CA1,    CB6_CA1,    CB5_CA1},
+    {0, CB1_CA1,    CB3_CA1,    CB2_CA1},
 };
 
 #define __ NO_LED

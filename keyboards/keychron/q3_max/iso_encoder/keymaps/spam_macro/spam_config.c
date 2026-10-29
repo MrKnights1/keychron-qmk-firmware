@@ -1,15 +1,6 @@
-#include <stddef.h>
 #include <string.h>
 #include "spam_config.h"
-#include "eeconfig_spam_macro.h"
 #include "keycodes.h"
-
-_Static_assert(sizeof(spam_macro_config_t) == EECONFIG_SIZE_SPAM_MACRO,
-               "spam_macro_config_t size mismatch with EECONFIG_SIZE_SPAM_MACRO");
-
-// Migration relies on the pre-binding (26-byte, unversioned) layout being an unchanged prefix.
-_Static_assert(offsetof(spam_macro_config_t, pilot_binds) == 26,
-               "settings fields must keep their pre-binding EEPROM offsets");
 
 void spam_config_defaults(spam_macro_config_t *cfg) {
     *cfg = (spam_macro_config_t){
@@ -27,7 +18,6 @@ void spam_config_defaults(spam_macro_config_t *cfg) {
         .pilot_toggle_col  = DEFAULT_PILOT_TOGGLE_COL,
         .spam_led_r = DEFAULT_LED_R, .spam_led_g = DEFAULT_LED_G, .spam_led_b = DEFAULT_LED_B,
         .pilot_led_r = DEFAULT_LED_R, .pilot_led_g = DEFAULT_LED_G, .pilot_led_b = DEFAULT_LED_B,
-        .version           = SPAM_MACRO_CONFIG_VERSION,
     };
     for (uint8_t i = 0; i < PILOT_BIND_COUNT; i++) {
         cfg->pilot_binds[i] = KC_TRNS;
@@ -48,28 +38,13 @@ static bool settings_valid(const spam_macro_config_t *cfg) {
     return true;
 }
 
-static spam_config_result_t reset(spam_macro_config_t *cfg) {
-    spam_config_defaults(cfg);
-    pilot_remap_clear();
-    return SPAM_CONFIG_RESET;
-}
-
-spam_config_result_t spam_config_load(spam_macro_config_t *cfg) {
-    if (!settings_valid(cfg)) return reset(cfg);
-
-    if (cfg->version != SPAM_MACRO_CONFIG_VERSION) {
-        // Bytes past the settings prefix are whatever followed the old layout in EEPROM.
-        for (uint8_t i = 0; i < PILOT_BIND_COUNT; i++) {
-            cfg->pilot_binds[i] = KC_TRNS;
-        }
-        cfg->version = SPAM_MACRO_CONFIG_VERSION;
-        pilot_remap_clear();
-        return SPAM_CONFIG_MIGRATED;
-    }
-
+bool spam_config_load(spam_macro_config_t *cfg) {
     // Copy out of the packed struct: pilot_remap_load needs aligned uint16_t.
     uint16_t binds[PILOT_BIND_COUNT];
     memcpy(binds, cfg->pilot_binds, sizeof(binds));
-    if (!pilot_remap_load(binds)) return reset(cfg);
-    return SPAM_CONFIG_CURRENT;
+    if (settings_valid(cfg) && pilot_remap_load(binds)) return true;
+
+    spam_config_defaults(cfg);
+    pilot_remap_clear();
+    return false;
 }

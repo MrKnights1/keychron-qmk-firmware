@@ -1,6 +1,6 @@
 /*
 Copyright 2021 Chad Austin <chad@chadaustin.me>
-Copyright 2024 @ keychron (https://www.keychron.com)
+Copyright 2024 ~ 2025 @ keychron (https://www.keychron.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -8,10 +8,10 @@ the Free Software Foundation, either version 2 of the License, or
 (at your option) any later version.
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -34,7 +34,7 @@ static matrix_row_t* last_raw = NULL;
 void sym_defer_pr_debounce_init(uint8_t num_rows) {
     countdowns = (uint8_t*)calloc(num_rows, sizeof(uint8_t));
     last_raw   = (matrix_row_t*)calloc(num_rows, sizeof(matrix_row_t));
-    last_time = timer_read();
+    last_time  = timer_read();
 }
 
 void sym_defer_pr_debounce_free(void) {

@@ -34,7 +34,7 @@ Braking (S) uses a slower interval than steering (A/D) because brake tapping nee
 
 ### Web Configurator Protocol
 
-The web configurator talks to the keyboard over VIA custom channel `0x44`. Value ID 28 reports the protocol version (`SPAM_VIA_PROTOCOL_VERSION` in `keymap.c`); the web app refuses to send or save when it doesn't match, so bump it whenever value IDs or their meaning change. Saved settings that predate pilot bindings are migrated on first boot; bindings start unbound.
+The web configurator talks to the keyboard over VIA custom channel `0x44`. Value ID 28 reports the protocol version (`SPAM_VIA_PROTOCOL_VERSION` in `keymap.c`); the web app refuses to send or save when it doesn't match, so bump it whenever value IDs or their meaning change. Settings are stored in QMK's keymap EEPROM datablock; every flash wipes them, so set them again in the web app and save.
 
 ### Technical Details
 
@@ -61,7 +61,7 @@ The easiest way. No build tools needed.
 
 ### Steps
 
-1. **Download** `firmware/keychron_q3_max_iso_encoder_spam_macro.bin` from this repo
+1. **Download** `keyboards/keychron/q3_max/firmware/keychron_q3_max_iso_encoder_spam_macro.bin` from this repo
 2. **Open** QMK Toolbox
 3. **Enter bootloader mode**: Unplug keyboard, hold **Escape**, plug USB back in
 4. QMK Toolbox should show **"DFU device connected"**
@@ -111,7 +111,8 @@ git clone -b wireless_playground https://github.com/MrKnights1/keychron-qmk-firm
 cd keychron-qmk-firmware
 
 # 2. Initialize required submodules
-git submodule update --init lib/chibios lib/chibios-contrib lib/lufa lib/printf
+git submodule sync
+git submodule update --init --recursive lib/chibios lib/chibios-contrib lib/lufa lib/printf
 
 # 3. Install Python dependencies
 pip install -r requirements.txt
@@ -120,18 +121,23 @@ pip install -r requirements.txt
 qmk compile -kb keychron/q3_max/iso_encoder -km spam_macro
 ```
 
-The compiled `.bin` will be at `.build/keychron_q3_max_iso_encoder_spam_macro.bin`.
+The compiled `.bin` will be at `.build/keychron_q3max_custom.bin`.
 
 ### Syncing with Keychron Updates
 
-When Keychron releases new firmware, sync the fork:
+This firmware sits on Keychron's `2025q3` branch (their main). None of Keychron's files are edited: everything of ours lives in this keymap folder, `users/spam_macro/`, `tests/keychron_spam_macro/`, `keychron-web/` and `keyboards/keychron/q3_max/firmware/`. Keychron updates therefore merge without conflicts:
 
 ```bash
-git remote add upstream https://github.com/Keychron/qmk_firmware.git
+git remote add upstream https://github.com/Keychron/qmk_firmware.git   # once
+git config --add remote.upstream.fetch +refs/heads/2025q3:refs/remotes/upstream/2025q3   # once
 git fetch upstream
-git merge upstream/wireless_playground
-git push origin wireless_playground
+git checkout -b chore/update-keychron wireless_playground
+git merge upstream/2025q3
+git submodule sync && git submodule update --init --recursive lib/chibios lib/chibios-contrib lib/lufa lib/printf lib/googletest
+keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/check_upstream_clean.sh
 ```
+
+Then run the tests, compile, flash and try it, and land it with `git merge --no-ff` (not a squash) so the link to Keychron's history is kept.
 
 > **Note**: The `dfu-suffix: not found` error at the end of compilation is harmless. The `.bin` file is created successfully before this error occurs.
 
@@ -142,14 +148,14 @@ Compare your compiled `.bin` size with the stock firmware:
 | File | Expected Size |
 |------|---------------|
 | Stock v1.1.0 | ~104 KB |
-| Spam macro build | ~105-108 KB |
+| Spam macro build | ~115 KB |
 
 If the size is significantly different (e.g. 48KB), something went wrong with the board selection.
 
 ## Testing
 
 ```bash
-# Firmware: pilot remap, saved-settings migration, mode switching (QMK googletest harness, needs the submodule once)
+# Firmware: pilot remap, saved settings, mode switching (QMK googletest harness, needs the submodule once)
 git submodule update --init lib/googletest
 make test:keychron_spam_macro
 
@@ -157,19 +163,17 @@ make test:keychron_spam_macro
 cd keychron-web && bun test
 ```
 
-## Patches Explained
+## Board Overrides
 
-`patches/q3_max_v110_fixes.patch` fixes issues in Keychron's open-source repo that prevent the Q3 Max ISO from compiling correctly with v1.1.0 features:
+Fixes for Keychron's Q3 Max ISO code live in `users/spam_macro/post_config.h` (read after every `config.h`) instead of edits to Keychron's files:
 
-| File | Fix | Why |
-|------|-----|-----|
-| `info.json` | Moved ISO Enter `[2,13]` to correct position in layout array | Without this, the home row (ASDFG) shifts by one key position |
-| `info.json` | Updated `device_version` to `1.1.0` | Repo had `1.0.0` |
-| `rules.mk` | Added `DEBOUNCE_TYPE=custom`, `SNAP_CLICK_ENABLE=yes`, `KEYCHRON_RGB_ENABLE=yes` | Keychron enabled these for v1.1.0 but didn't push the updated rules.mk |
-| `q3_max.c` | Replaced old board init with `keychron_common_init()` | Old code didn't integrate with new common features (matches V3 Max pattern) |
-| `config.h` | Added `#include "eeconfig_kb.h"` | Required for EEPROM-based config (debounce, snap click, RGB settings) |
-| `eeconfig_kb.h` | Added `#undef` before `EECONFIG_KB_DATA_SIZE` redefinition | Prevents compiler error from double-define |
-| `iso_encoder.c` | Added `default_per_key_led[]` and `default_region[]` arrays | Required by per-key RGB and mixed RGB features (88 LEDs) |
+| Setting | Value | Why |
+|---------|-------|-----|
+| `SNLED27351_PHASE_CHANNEL` | 12 channels | Keychron's config scans 9, which leaves the Tab to Del row dark |
+| `CAPS_LOCK_INDEX` | 50 | Keychron ships 51, which lights the A key; Caps Lock `[3,0]` is LED 50 |
+| `RGB_MATRIX_DEFAULT_*` | solid #07fff0 | Default backlight after a reset |
+
+The layers in `keymap.c` follow Keychron's `keyboard.json` order, where ISO Enter `[2,13]` is listed after row 3: its keycode comes after `KC_NUHS`, at the end of the home row.
 
 ## Tuning the Intervals
 
@@ -184,11 +188,11 @@ Timings are tuned live in the web configurator and saved to EEPROM. The defaults
 
 ## Recovery / Restoring Stock Firmware
 
-A stock backup is included at `firmware/stock/q3_max_iso_encoder_v1.1.0_2503261021.bin`.
+A stock backup is included at `keyboards/keychron/q3_max/firmware/stock_v1.1.0_iso_encoder.bin`.
 
 1. Hold **Escape** while plugging in USB cable
 2. Open QMK Toolbox
-3. Load `firmware/stock/q3_max_iso_encoder_v1.1.0_2503261021.bin`
+3. Load `keyboards/keychron/q3_max/firmware/stock_v1.1.0_iso_encoder.bin`
 4. Click **Flash**
 
 You can also download the latest stock firmware from the [Keychron Firmware Page](https://www.keychron.com/pages/firmware-and-json-files-of-the-keychron-qmk-keyboards).
@@ -198,17 +202,19 @@ You can also download the latest stock firmware from the [Keychron Firmware Page
 ## File Structure
 
 ```
-keychron-q3-max-spam-macro/
-├── README.md
+keyboards/keychron/q3_max/
 ├── firmware/
 │   ├── keychron_q3_max_iso_encoder_spam_macro.bin   # Pre-compiled, ready to flash
-│   └── stock/
-│       └── q3_max_iso_encoder_v1.1.0_2503261021.bin # Stock backup for recovery
-├── keymap/
-│   ├── keymap.c                                      # Custom keymap with spam macro
-│   └── rules.mk                                      # Build config (VIA enabled)
-└── patches/
-    └── q3_max_v110_fixes.patch                       # Fixes for Keychron QMK repo
+│   └── stock_v1.1.0_iso_encoder.bin                 # Stock backup for recovery
+└── iso_encoder/keymaps/spam_macro/
+    ├── keymap.c                                     # Layers, spam macro, VIA values, LED indicators
+    ├── pilot_remap.c / spam_config.c / modes.c      # Pilot remap, saved settings, mode rules
+    ├── config.h                                     # EEPROM size, pilot key positions
+    ├── rules.mk                                     # Build config (VIA enabled, output name)
+    └── check_upstream_clean.sh                      # Fails if Keychron's files were edited
+users/spam_macro/post_config.h                      # Board overrides (LED scan, Caps Lock LED, default colour)
+tests/keychron_spam_macro/                           # Firmware unit tests
+keychron-web/                                        # Web configurator and flasher
 ```
 
 ## License

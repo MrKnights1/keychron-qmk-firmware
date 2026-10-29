@@ -21,32 +21,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "rgb_matrix_types.h"
+#include "rgb_matrix_drivers.h"
 #include "color.h"
 #include "keyboard.h"
-
-#if defined(RGB_MATRIX_IS31FL3218)
-#    include "is31fl3218.h"
-#elif defined(RGB_MATRIX_IS31FL3731)
-#    include "is31fl3731.h"
-#elif defined(RGB_MATRIX_IS31FL3733)
-#    include "is31fl3733.h"
-#elif defined(RGB_MATRIX_IS31FL3736)
-#    include "is31fl3736.h"
-#elif defined(RGB_MATRIX_IS31FL3737)
-#    include "is31fl3737.h"
-#elif defined(RGB_MATRIX_IS31FL3741)
-#    include "is31fl3741.h"
-#elif defined(IS31FLCOMMON)
-#    include "is31flcommon.h"
-#elif defined(RGB_MATRIX_SNLED27351)
-#    include "snled27351.h"
-#elif defined(RGB_MATRIX_SNLED27351_SPI)
-#    include "snled27351-spi.h"
-#elif defined(RGB_MATRIX_AW20216S)
-#    include "aw20216s.h"
-#elif defined(RGB_MATRIX_WS2812)
-#    include "ws2812.h"
-#endif
 
 #ifndef RGB_MATRIX_TIMEOUT
 #    define RGB_MATRIX_TIMEOUT 0
@@ -101,6 +78,10 @@
 #    define RGB_MATRIX_DEFAULT_SPD UINT8_MAX / 2
 #endif
 
+#ifndef RGB_MATRIX_DEFAULT_FLAGS
+#    define RGB_MATRIX_DEFAULT_FLAGS LED_FLAG_ALL
+#endif
+
 #ifndef RGB_MATRIX_LED_FLUSH_LIMIT
 #    define RGB_MATRIX_LED_FLUSH_LIMIT 16
 #endif
@@ -144,6 +125,12 @@ enum rgb_matrix_effects {
 #include "rgb_matrix_effects.inc"
 #undef RGB_MATRIX_EFFECT
 
+#ifdef COMMUNITY_MODULES_ENABLE
+#    define RGB_MATRIX_EFFECT(name, ...) RGB_MATRIX_COMMUNITY_MODULE_##name,
+#    include "rgb_matrix_community_modules.inc"
+#    undef RGB_MATRIX_EFFECT
+#endif
+
 #if defined(RGB_MATRIX_CUSTOM_KB) || defined(RGB_MATRIX_CUSTOM_USER)
 #    define RGB_MATRIX_EFFECT(name, ...) RGB_MATRIX_CUSTOM_##name,
 #    ifdef RGB_MATRIX_CUSTOM_KB
@@ -161,17 +148,19 @@ enum rgb_matrix_effects {
 };
 
 void eeconfig_update_rgb_matrix_default(void);
-void eeconfig_update_rgb_matrix(void);
+void eeconfig_force_flush_rgb_matrix(void);
 
 uint8_t rgb_matrix_map_row_column_to_led_kb(uint8_t row, uint8_t column, uint8_t *led_i);
 uint8_t rgb_matrix_map_row_column_to_led(uint8_t row, uint8_t column, uint8_t *led_i);
+
+int rgb_matrix_led_index(int index);
 
 void rgb_matrix_set_color(int index, uint8_t red, uint8_t green, uint8_t blue);
 void rgb_matrix_set_color_all(uint8_t red, uint8_t green, uint8_t blue);
 void rgb_matrix_region_set_color(uint8_t region, int index, uint8_t red, uint8_t green, uint8_t blue);
 void rgb_matrix_region_set_color_all(uint8_t region, uint8_t red, uint8_t green, uint8_t blue);
 
-void process_rgb_matrix(uint8_t row, uint8_t col, bool pressed);
+void rgb_matrix_handle_key_event(uint8_t row, uint8_t col, bool pressed);
 
 void rgb_matrix_task(void);
 
@@ -210,7 +199,7 @@ void        rgb_matrix_step_reverse(void);
 void        rgb_matrix_step_reverse_noeeprom(void);
 void        rgb_matrix_sethsv(uint16_t hue, uint8_t sat, uint8_t val);
 void        rgb_matrix_sethsv_noeeprom(uint16_t hue, uint8_t sat, uint8_t val);
-HSV         rgb_matrix_get_hsv(void);
+hsv_t       rgb_matrix_get_hsv(void);
 uint8_t     rgb_matrix_get_hue(void);
 uint8_t     rgb_matrix_get_sat(void);
 uint8_t     rgb_matrix_get_val(void);
@@ -250,8 +239,14 @@ bool rgb_matrix_is_driver_shutdown(void);
 bool rgb_matrix_driver_allow_shutdown(void);
 #endif
 
+void        rgb_matrix_update_pwm_buffers(void);
+
+#ifdef RGB_MATRIX_MODE_NAME_ENABLE
+const char *rgb_matrix_get_mode_name(uint8_t mode);
+#endif // RGB_MATRIX_MODE_NAME_ENABLE
+
 #ifndef RGBLIGHT_ENABLE
-#    define eeconfig_update_rgblight_current eeconfig_update_rgb_matrix
+#    define eeconfig_update_rgblight_current eeconfig_force_flush_rgb_matrix
 #    define rgblight_reload_from_eeprom rgb_matrix_reload_from_eeprom
 #    define rgblight_toggle rgb_matrix_toggle
 #    define rgblight_toggle_noeeprom rgb_matrix_toggle_noeeprom
@@ -294,23 +289,6 @@ bool rgb_matrix_driver_allow_shutdown(void);
 #    define rgblight_decrease_speed_noeeprom rgb_matrix_decrease_speed_noeeprom
 #endif
 
-typedef struct {
-    /* Perform any initialisation required for the other driver functions to work. */
-    void (*init)(void);
-    /* Set the colour of a single LED in the buffer. */
-    void (*set_color)(int index, uint8_t r, uint8_t g, uint8_t b);
-    /* Set the colour of all LEDS on the keyboard in the buffer. */
-    void (*set_color_all)(uint8_t r, uint8_t g, uint8_t b);
-    /* Flush any buffered changes to the hardware. */
-    void (*flush)(void);
-#ifdef RGB_MATRIX_DRIVER_SHUTDOWN_ENABLE
-    /* Shutdown the driver. */
-    void (*shutdown)(void);
-    /* Exit from shutdown state. */
-    void (*exit_shutdown)(void);
-#endif
-} rgb_matrix_driver_t;
-
 static inline bool rgb_matrix_check_finished_leds(uint8_t led_idx) {
 #if defined(RGB_MATRIX_SPLIT)
     if (is_keyboard_left()) {
@@ -322,8 +300,6 @@ static inline bool rgb_matrix_check_finished_leds(uint8_t led_idx) {
     return led_idx < RGB_MATRIX_LED_COUNT;
 #endif
 }
-
-extern const rgb_matrix_driver_t rgb_matrix_driver;
 
 extern rgb_config_t rgb_matrix_config;
 

@@ -1,4 +1,4 @@
-/* Copyright 2023~2025 @ lokher (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -25,9 +25,15 @@
 #    define kc_printf(format, ...)
 #endif
 
+#define RAW_HID_SRC_WIRELESS (RAW_HID_SRC_USB + 1)
+
 /* Low power mode */
 #ifndef LOW_POWER_MODE
-#    define LOW_POWER_MODE PM_STOP
+#    ifdef QMK_MCU_SERIES_STM32L4XX
+#        define LOW_POWER_MODE PM_STOP1
+#    else
+#        define LOW_POWER_MODE PM_STOP
+#    endif
 #endif
 
 /* Wake pin used for blueooth module/controller to wake up MCU in low power mode*/
@@ -59,6 +65,15 @@ typedef struct {
     void (*send_consumer)(uint16_t);
     void (*send_system)(uint16_t);
     void (*send_mouse)(uint8_t *);
+#ifdef JOYSTICK_ENABLE
+    void (*send_joystick)(uint8_t *);
+#endif
+#ifdef XINPUT_ENABLE
+    void (*send_xinput)(uint8_t *);
+#endif
+#ifdef RAW_ENABLE
+    void (*send_raw_hid)(uint8_t *, uint8_t);
+#endif
     void (*update_bat_level)(uint8_t);
     void (*task)(void);
 } wt_func_t;
@@ -89,6 +104,7 @@ void wireless_enter_connected_kb(uint8_t host_idx);
 void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason);
 void wireless_enter_bluetooth_pin_code_entry_kb(void);
 void wireless_exit_bluetooth_pin_code_entry_kb(void);
+bool is_wireless_pin_code_entry(void);
 void wireless_enter_sleep_kb(void);
 
 void wireless_task(void);
@@ -103,4 +119,3 @@ void wireless_low_battery_shutdown(void);
 bool process_record_wireless(uint16_t keycode, keyrecord_t *record);
 
 void wireless_raw_hid_rx(uint8_t *data, uint8_t length);
-

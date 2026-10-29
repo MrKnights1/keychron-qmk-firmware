@@ -23,8 +23,6 @@ extern "C" {
 }
 
 namespace {
-const size_t PRE_BINDING_SIZE = 26;
-
 spam_macro_config_t defaults() {
     spam_macro_config_t cfg;
     spam_config_defaults(&cfg);
@@ -53,12 +51,12 @@ class SpamConfig : public testing::Test {
     }
 };
 
-TEST_F(SpamConfig, defaults_load_as_current) {
+TEST_F(SpamConfig, defaults_are_kept) {
     spam_macro_config_t cfg = defaults();
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_CURRENT);
+    EXPECT_TRUE(kept);
     EXPECT_TRUE(same(cfg, defaults()));
 }
 
@@ -68,39 +66,21 @@ TEST_F(SpamConfig, current_config_is_kept_and_its_bindings_loaded) {
     cfg.pilot_binds[PILOT_BIND_PGDN]   = KC_NO;
     spam_macro_config_t before         = cfg;
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_CURRENT);
+    EXPECT_TRUE(kept);
     EXPECT_TRUE(same(cfg, before));
     EXPECT_EQ(pilot_remap_get_binding(PILOT_BIND_Q), KC_P7);
     EXPECT_EQ(pilot_remap_get_binding(PILOT_BIND_PGDN), KC_NO);
-}
-
-TEST_F(SpamConfig, pre_binding_layout_keeps_settings_and_clears_bindings) {
-    pilot_remap_set_binding(PILOT_BIND_Q, KC_P7);
-    spam_macro_config_t old = tuned();
-    spam_macro_config_t cfg;
-    std::memset(&cfg, 0x7E, sizeof(cfg)); // whatever followed the old layout in EEPROM
-    std::memcpy(&cfg, &old, PRE_BINDING_SIZE);
-
-    spam_config_result_t result = spam_config_load(&cfg);
-
-    EXPECT_EQ(result, SPAM_CONFIG_MIGRATED);
-    EXPECT_EQ(std::memcmp(&cfg, &old, PRE_BINDING_SIZE), 0);
-    EXPECT_EQ(cfg.version, SPAM_MACRO_CONFIG_VERSION);
-    for (uint8_t slot = 0; slot < PILOT_BIND_COUNT; slot++) {
-        EXPECT_EQ(cfg.pilot_binds[slot], KC_TRNS);
-        EXPECT_EQ(pilot_remap_get_binding(slot), KC_TRNS);
-    }
 }
 
 TEST_F(SpamConfig, out_of_range_timing_resets_to_defaults) {
     spam_macro_config_t cfg = tuned();
     cfg.steer_hold_ms       = 0;
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_RESET);
+    EXPECT_FALSE(kept);
     EXPECT_TRUE(same(cfg, defaults()));
 }
 
@@ -108,9 +88,9 @@ TEST_F(SpamConfig, out_of_range_toggle_resets_to_defaults) {
     spam_macro_config_t cfg = tuned();
     cfg.pilot_toggle_col    = 17;
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_RESET);
+    EXPECT_FALSE(kept);
     EXPECT_TRUE(same(cfg, defaults()));
 }
 
@@ -118,9 +98,19 @@ TEST_F(SpamConfig, erased_eeprom_resets_to_defaults) {
     spam_macro_config_t cfg;
     std::memset(&cfg, 0xFF, sizeof(cfg));
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_RESET);
+    EXPECT_FALSE(kept);
+    EXPECT_TRUE(same(cfg, defaults()));
+}
+
+TEST_F(SpamConfig, zeroed_block_resets_to_defaults) {
+    spam_macro_config_t cfg;
+    std::memset(&cfg, 0x00, sizeof(cfg)); // what QMK returns when the datablock's version stamp doesn't match
+
+    bool kept = spam_config_load(&cfg);
+
+    EXPECT_FALSE(kept);
     EXPECT_TRUE(same(cfg, defaults()));
 }
 
@@ -130,9 +120,9 @@ TEST_F(SpamConfig, invalid_binding_resets_without_loading_any_binding) {
     cfg.pilot_binds[PILOT_BIND_Q] = KC_P1;
     cfg.pilot_binds[PILOT_BIND_E] = KC_RIGHT_GUI + 1;
 
-    spam_config_result_t result = spam_config_load(&cfg);
+    bool kept = spam_config_load(&cfg);
 
-    EXPECT_EQ(result, SPAM_CONFIG_RESET);
+    EXPECT_FALSE(kept);
     EXPECT_TRUE(same(cfg, defaults()));
     for (uint8_t slot = 0; slot < PILOT_BIND_COUNT; slot++) {
         EXPECT_EQ(pilot_remap_get_binding(slot), KC_TRNS);

@@ -29,8 +29,8 @@ bool pilot_binding_valid(uint16_t keycode) {
         || (keycode >= KC_A && keycode <= KC_APPLICATION)
         || (keycode >= KC_F13 && keycode <= KC_F24)
         || (keycode >= KC_AUDIO_MUTE && keycode <= KC_MEDIA_PLAY_PAUSE)
-        || (keycode >= KC_MS_BTN1 && keycode <= KC_MS_BTN5)
-        || (keycode >= KC_MS_WH_UP && keycode <= KC_MS_WH_DOWN)
+        || (keycode >= MS_BTN1 && keycode <= MS_BTN5)
+        || (keycode >= MS_WHLU && keycode <= MS_WHLD)
         || (keycode >= KC_LEFT_CTRL && keycode <= KC_RIGHT_GUI);
 }
 

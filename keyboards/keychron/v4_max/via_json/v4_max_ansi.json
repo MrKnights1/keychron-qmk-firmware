@@ -43,18 +43,20 @@
                 ["Reactive Multiwide", 19],
                 ["Reactive Multinexus", 20],
                 ["Splash", 21],
-                ["Solid Splash", 22]
+                ["Solid Splash", 22],
+                ["Per Key RGB", 23],
+                ["Mix RGB", 24]
               ]
             },
             {
-              "showIf": "{id_qmk_rgb_matrix_effect} > 1",
+              "showIf": "{id_qmk_rgb_matrix_effect} > 1 && {id_qmk_rgb_matrix_effect} < 23",
               "label": "Effect Speed",
               "type": "range",
               "options": [0, 255],
               "content": ["id_qmk_rgb_matrix_effect_speed", 3, 3]
             },
             {
-              "showIf": "{id_qmk_rgb_matrix_effect} != 0 && ( {id_qmk_rgb_matrix_effect} < 4 || {id_qmk_rgb_matrix_effect} == 18 || ({id_qmk_rgb_matrix_effect} > 17 && {id_qmk_rgb_matrix_effect} != 21) ) ",
+              "showIf": "({id_qmk_rgb_matrix_effect} >= 1 && {id_qmk_rgb_matrix_effect} <= 3) || ({id_qmk_rgb_matrix_effect} >= 18 && {id_qmk_rgb_matrix_effect} <= 20) || {id_qmk_rgb_matrix_effect} == 22",
               "label": "Color",
               "type": "color",
               "content": ["id_qmk_rgb_matrix_color", 3, 4]
@@ -69,20 +71,20 @@
     {"name": "Right Option", "title": "Right Option", "shortName": "ROpt"},
     {"name": "Left Cmd", "title": "Left Command", "shortName": "LCmd"},
     {"name": "Right Cmd", "title": "Right Command", "shortName": "RCmd"},
-    {"name": "Misson Control", "title": "Misson Control in Mac", "shortName": "MCtl"},
-    {"name": "Lanuch Pad", "title": "Lanuch Pad in Windows", "shortName": "LPad"},
-    {"name": "Task View", "title": "Task View in Windows", "shortName": "Task"},
-    {"name": "File Explorer", "title": "File Explorer in Windows", "shortName": "File"},
-    {"name": "Screen shot", "title": "Screenshot in macOS", "shortName": "SShot"},
-    {"name": "Cortana", "title": "Cortana in Windows", "shortName": "Cortana"},
-    {"name": "Siri", "title": "Siri in macOS", "shortName": "Siri"},
+    {"name": "Mission Control", "title": "Mission Control on macOS", "shortName": "MCtl"},
+    {"name": "Launchpad", "title": "Launchpad on macOS", "shortName": "LPad"},
+    {"name": "Task View", "title": "Task View on Windows", "shortName": "Task"},
+    {"name": "File Explorer", "title": "File Explorer on Windows", "shortName": "File"},
+    {"name": "Screen shot", "title": "Screenshot on macOS", "shortName": "SShot"},
+    {"name": "Cortana", "title": "Cortana on Windows 10", "shortName": "Cortana"},
+    {"name": "Siri", "title": "Siri on macOS", "shortName": "Siri"},
     {"name": "Bluetooth Host 1", "title": "Bluetooth Host 1", "shortName": "BTH1"},
     {"name": "Bluetooth Host 2", "title": "Bluetooth Host 2", "shortName": "BTH2"},
     {"name": "Bluetooth Host 3", "title": "Bluetooth Host 3", "shortName": "BTH3"},
     {"name": "2.4G", "title": "2.4G", "shortName": "2.4G"},
     {"name": "Battery Level", "title": "Show battery level", "shortName": "Batt"}
   ],
-  "matrix": {"rows": 5, "cols" : 14},
+  "matrix": {"rows": 5, "cols": 14},
   "layouts": {
     "keymap": [
       [
@@ -107,8 +109,8 @@
         "0,11",
         "0,12",
         {
-          "c": "#aaaaaa",
-          "w": 2
+          "w": 2,
+          "c": "#aaaaaa"
         },
         "0,13"
       ],
@@ -134,7 +136,7 @@
         "1,12",
         {
           "w": 1.5,
-          "c":"#aaaaaa"
+          "c": "#aaaaaa"
         },
         "1,13"
       ],
@@ -158,15 +160,15 @@
         "2,10",
         "2,11",
         {
-          "c": "#777777",
-          "w": 2.25
+          "w": 2.25,
+          "c": "#777777"
         },
         "2,13"
       ],
       [
         {
-          "c": "#aaaaaa",
-          "w": 2.25
+          "w": 2.25,
+          "c": "#aaaaaa"
         },
         "3,0",
         {
@@ -183,8 +185,8 @@
         "3,10",
         "3,11",
         {
-          "c": "#aaaaaa",
-          "w": 2.75
+          "w": 2.75,
+          "c": "#aaaaaa"
         },
         "3,13"
       ],
@@ -202,13 +204,13 @@
         },
         "4,2",
         {
-          "c": "#cccccc",
-          "w": 6.25
+          "w": 6.25,
+          "c": "#cccccc"
         },
         "4,6",
         {
-          "c": "#aaaaaa",
-          "w": 1.25
+          "w": 1.25,
+          "c": "#aaaaaa"
         },
         "4,10",
         {

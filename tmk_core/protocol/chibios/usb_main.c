@@ -21,16 +21,16 @@
 #include "host.h"
 #include "suspend.h"
 #include "timer.h"
-#ifdef SLEEP_LED_ENABLE
-#    include "sleep_led.h"
-#    include "led.h"
-#endif
 #include "wait.h"
 #include "usb_endpoints.h"
 #include "usb_device_state.h"
 #include "usb_descriptor.h"
 #include "usb_driver.h"
 #include "usb_types.h"
+
+#ifdef RAW_ENABLE
+#    include "raw_hid.h"
+#endif
 
 #ifdef NKRO_ENABLE
 #    include "keycode_config.h"
@@ -51,12 +51,13 @@ extern keymap_config_t keymap_config;
 #    define usb_lld_disconnect_bus(usbp)
 #endif
 
+#ifdef USB_REPORT_INTERVAL_ENABLE
+extern void usb_endpoint_in_tx(USBDriver *usbp, usbep_t ep);
+uint8_t usb_report_interval = 0;
+#endif
+
 extern usb_endpoint_in_t  usb_endpoints_in[USB_ENDPOINT_IN_COUNT];
 extern usb_endpoint_out_t usb_endpoints_out[USB_ENDPOINT_OUT_COUNT];
-
-uint8_t _Alignas(2) keyboard_idle     = 0;
-uint8_t _Alignas(2) keyboard_protocol = 1;
-uint8_t keyboard_led_state            = 0;
 
 static bool __attribute__((__unused__)) send_report_buffered(usb_endpoint_in_lut_t endpoint, void *report, size_t size);
 static void __attribute__((__unused__)) flush_report_buffered(usb_endpoint_in_lut_t endpoint, bool padded);
@@ -84,7 +85,13 @@ static const USBDescriptor *usb_get_descriptor_cb(USBDriver *usbp, uint8_t dtype
 
     static USBDescriptor descriptor;
     descriptor.ud_string = NULL;
-    descriptor.ud_size   = get_usb_descriptor(setup->wValue.word, setup->wIndex, setup->wLength, (const void **const) & descriptor.ud_string);
+    //descriptor.ud_size   = get_usb_descriptor(setup->wValue.word, setup->wIndex, setup->wLength, (const void **const) & descriptor.ud_string);
+#ifdef XINPUT_ENABLE
+    if ((usbp->setup[0] & (USB_RTYPE_DIR_MASK | USB_RTYPE_TYPE_MASK)) == (USB_RTYPE_DIR_DEV2HOST | USB_RTYPE_TYPE_VENDOR))
+        descriptor.ud_size = get_usb_vendor_descriptor(setup->bmRequestType & USB_RTYPE_RECIPIENT_MASK, setup->bRequest, setup->wValue.word, setup->wIndex, setup->wLength, (const void **const) & descriptor.ud_string);
+    else
+#endif
+        descriptor.ud_size  = get_usb_descriptor(setup->wValue.word, setup->wIndex, setup->wLength, (const void **const) & descriptor.ud_string);
 
     if (descriptor.ud_string == NULL) {
         return NULL;
@@ -131,19 +138,11 @@ static inline bool usb_event_queue_dequeue(usbevent_t *event) {
 
 static inline void usb_event_suspend_handler(void) {
     usb_device_state_set_suspend(USB_DRIVER.configuration != 0, USB_DRIVER.configuration);
-#ifdef SLEEP_LED_ENABLE
-    sleep_led_enable();
-#endif /* SLEEP_LED_ENABLE */
 }
 
 static inline void usb_event_wakeup_handler(void) {
     suspend_wakeup_init();
     usb_device_state_set_resume(USB_DRIVER.configuration != 0, USB_DRIVER.configuration);
-#ifdef SLEEP_LED_ENABLE
-    sleep_led_disable();
-    // NOTE: converters may not accept this
-    led_set(host_keyboard_leds());
-#endif /* SLEEP_LED_ENABLE */
 }
 
 bool last_suspend_state = false;
@@ -168,6 +167,7 @@ void usb_event_queue_task(void) {
                 break;
             case USB_EVENT_RESET:
                 usb_device_state_set_reset();
+                usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
                 break;
             default:
                 // Nothing to do, we don't handle it.
@@ -203,7 +203,9 @@ static void usb_event_cb(USBDriver *usbp, usbevent_t event) {
         case USB_EVENT_RESET:
             usb_event_queue_enqueue(event);
             chSysLockFromISR();
-            if (event == USB_EVENT_RESET) keyboard_protocol = 1;
+            if (event == USB_EVENT_RESET) {
+                usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
+            }
             for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
                 usb_endpoint_in_suspend_cb(&usb_endpoints_in[i]);
             }
@@ -251,10 +253,10 @@ static void set_led_transfer_cb(USBDriver *usbp) {
     if (setup->wLength == 2) {
         uint8_t report_id = set_report_buf[0];
         if ((report_id == REPORT_ID_KEYBOARD) || (report_id == REPORT_ID_NKRO)) {
-            keyboard_led_state = set_report_buf[1];
+            usb_device_state_set_leds(set_report_buf[1]);
         }
     } else {
-        keyboard_led_state = set_report_buf[0];
+        usb_device_state_set_leds(set_report_buf[0]);
     }
 }
 
@@ -270,7 +272,9 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
                         return usb_get_report_cb(usbp);
                     case HID_REQ_GetProtocol:
                         if (setup->wIndex == KEYBOARD_INTERFACE) {
-                            usbSetupTransfer(usbp, &keyboard_protocol, sizeof(uint8_t), NULL);
+                            static uint8_t keyboard_protocol;
+                            keyboard_protocol = usb_device_state_get_protocol();
+                            usbSetupTransfer(usbp, &keyboard_protocol, sizeof(keyboard_protocol), NULL);
                             return true;
                         }
                         break;
@@ -293,12 +297,12 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
                         break;
                     case HID_REQ_SetProtocol:
                         if (setup->wIndex == KEYBOARD_INTERFACE) {
-                            keyboard_protocol = setup->wValue.word;
+                            usb_device_state_set_protocol(setup->wValue.lbyte);
                         }
                         usbSetupTransfer(usbp, NULL, 0, NULL);
                         return true;
                     case HID_REQ_SetIdle:
-                        keyboard_idle = setup->wValue.hbyte;
+                        usb_device_state_set_idle_rate(setup->wValue.hbyte);
                         return usb_set_idle_cb(usbp);
                 }
                 break;
@@ -316,6 +320,18 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
         return true;
     }
 
+#ifdef XINPUT_ENABLE
+    /* Handle the GET_MS_DESCRIPTOR control request */
+    if ((setup->bmRequestType == USB_RTYPE_TYPE_OS_FEATURE) && (setup->bRequest == USB_REQ_GET_MS_DESCRIPTOR)) {
+        const USBDescriptor *descriptor = usbp->config->get_descriptor_cb(usbp, setup->wValue.lbyte, setup->wValue.hbyte, setup->wIndex);
+        if ((descriptor == NULL) || (descriptor->ud_string == NULL) || (descriptor->ud_size == 0)) {
+            return false;
+        }
+        usbSetupTransfer(usbp, (uint8_t *)descriptor->ud_string, descriptor->ud_size, NULL);
+        return true;
+    }
+#endif
+
     for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
         if (usb_endpoints_in[i].usb_requests_cb != NULL) {
             if (usb_endpoints_in[i].usb_requests_cb(usbp)) {
@@ -327,7 +343,29 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
     return false;
 }
 
-static __attribute__((unused)) void dummy_cb(USBDriver *usbp) {
+static __attribute__((unused)) void usb_sof_cb(USBDriver *usbp) {
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+    wait_us(20);
+    if (usbp->epc[KEYBOARD_IN_EPNUM]) {
+        USBInEndpointState *isp = usbp->epc[KEYBOARD_IN_EPNUM]->in_state;
+
+        if (isp->report_interval_count < usbp->report_interval[KEYBOARD_IN_EPNUM]) ++isp->report_interval_count;
+
+        if (!usbGetTransmitStatusI(usbp, KEYBOARD_IN_EPNUM)) {
+            usb_endpoint_in_tx(usbp, KEYBOARD_IN_EPNUM);
+        }
+    }
+
+    if (usbp->epc[SHARED_IN_EPNUM]) {
+        USBInEndpointState *isp = usbp->epc[SHARED_IN_EPNUM]->in_state;
+
+        if (isp->report_interval_count < usbp->report_interval[SHARED_IN_EPNUM]) ++isp->report_interval_count;
+
+        if (!usbGetTransmitStatusI(usbp, SHARED_IN_EPNUM)) {
+            usb_endpoint_in_tx(usbp, SHARED_IN_EPNUM);
+        }
+    }
+#endif
     (void)usbp;
 }
 
@@ -335,11 +373,21 @@ static const USBConfig usbcfg = {
     usb_event_cb,          /* USB events callback */
     usb_get_descriptor_cb, /* Device GET_DESCRIPTOR request callback */
     usb_requests_hook_cb,  /* Requests hook callback */
-#if STM32_USB_USE_OTG1 == TRUE || STM32_USB_USE_OTG2 == TRUE
-    dummy_cb, /* Workaround for OTG Peripherals not servicing new interrupts
-    after resuming from suspend. */
-#endif
+    usb_sof_cb,            /* SOF callback */
 };
+
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+void update_usb_report_interval(USBDriver *usbp, uint8_t interval) {
+    for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
+        usbp->report_interval[i] = 0;
+    }
+
+    usbp->report_interval[USB_ENDPOINT_IN_SHARED] = interval;
+#if !defined(KEYBOARD_SHARED_EP)
+    usbp->report_interval[USB_ENDPOINT_IN_KEYBOARD] = interval;
+#endif
+}
+#endif
 
 void init_usb_driver(USBDriver *usbp) {
     for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
@@ -351,6 +399,9 @@ void init_usb_driver(USBDriver *usbp) {
         usb_endpoint_out_init(&usb_endpoints_out[i]);
         usb_endpoint_out_start(&usb_endpoints_out[i]);
     }
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+    update_usb_report_interval(usbp, usb_report_interval);
+#endif
 
     /*
      * Activates the USB driver and then the USB bus pull-up on D+.
@@ -364,7 +415,33 @@ void init_usb_driver(USBDriver *usbp) {
     usbConnectBus(usbp);
 }
 
-__attribute__((weak)) void usb_start(USBDriver *usbp) {
+__attribute__((weak)) void restart_usb_driver(USBDriver *usbp) {
+    usbDisconnectBus(usbp);
+    usbStop(usbp);
+
+    for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
+        usb_endpoint_in_stop(&usb_endpoints_in[i]);
+    }
+
+    for (int i = 0; i < USB_ENDPOINT_OUT_COUNT; i++) {
+        usb_endpoint_out_stop(&usb_endpoints_out[i]);
+    }
+
+    wait_ms(50);
+
+    for (int i = 0; i < USB_ENDPOINT_IN_COUNT; i++) {
+        usb_endpoint_in_init(&usb_endpoints_in[i]);
+        usb_endpoint_in_start(&usb_endpoints_in[i]);
+    }
+
+    for (int i = 0; i < USB_ENDPOINT_OUT_COUNT; i++) {
+        usb_endpoint_out_init(&usb_endpoints_out[i]);
+        usb_endpoint_out_start(&usb_endpoints_out[i]);
+    }
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+    update_usb_report_interval(usbp, usb_report_interval);
+#endif
+
     usbStart(usbp, &usbcfg);
     usbConnectBus(usbp);
 }
@@ -373,11 +450,6 @@ __attribute__((weak)) void usb_start(USBDriver *usbp) {
  *                  Keyboard functions
  * ---------------------------------------------------------
  */
-
-/* LED status */
-uint8_t keyboard_leds(void) {
-    return keyboard_led_state;
-}
 
 /**
  * @brief Send a report to the host, the report is enqueued into an output
@@ -436,7 +508,7 @@ static bool receive_report(usb_endpoint_out_lut_t endpoint, void *report, size_t
 
 void send_keyboard(report_keyboard_t *report) {
     /* If we're in Boot Protocol, don't send any report ID or other funky fields */
-    if (!keyboard_protocol) {
+    if (usb_device_state_get_protocol() == USB_PROTOCOL_BOOT) {
         send_report(USB_ENDPOINT_IN_KEYBOARD, &report->mods, 8);
     } else {
         send_report(USB_ENDPOINT_IN_KEYBOARD, report, KEYBOARD_REPORT_SIZE);
@@ -489,6 +561,12 @@ void send_digitizer(report_digitizer_t *report) {
 #endif
 }
 
+void send_xinput(report_xinput_t *report) {
+#ifdef XINPUT_ENABLE
+    send_report(USB_ENDPOINT_IN_XINPUT, report, sizeof(report_xinput_t));
+#endif
+}
+
 /* ---------------------------------------------------------
  *                   Console functions
  * ---------------------------------------------------------
@@ -507,23 +585,17 @@ void console_task(void) {
 #endif /* CONSOLE_ENABLE */
 
 #ifdef RAW_ENABLE
-void raw_hid_send(uint8_t *data, uint8_t length) {
+void send_raw_hid(uint8_t *data, uint8_t length) {
     if (length != RAW_EPSIZE) {
         return;
     }
     send_report(USB_ENDPOINT_IN_RAW, data, length);
 }
 
-__attribute__((weak)) void raw_hid_receive(uint8_t *data, uint8_t length) {
-    // Users should #include "raw_hid.h" in their own code
-    // and implement this function there. Leave this as weak linkage
-    // so users can opt to not handle data coming in.
-}
-
 void raw_hid_task(void) {
     uint8_t buffer[RAW_EPSIZE];
     while (receive_report(USB_ENDPOINT_OUT_RAW, buffer, sizeof(buffer))) {
-        raw_hid_receive(buffer, sizeof(buffer));
+        raw_hid_receive(RAW_HID_SRC_USB, buffer, sizeof(buffer));
     }
 }
 
@@ -539,15 +611,6 @@ bool recv_midi_packet(MIDI_EventPacket_t *const event) {
     return receive_report(USB_ENDPOINT_OUT_MIDI, (uint8_t *)event, sizeof(MIDI_EventPacket_t));
 }
 
-void midi_ep_task(void) {
-    uint8_t buffer[MIDI_STREAM_EPSIZE];
-    while (receive_report(USB_ENDPOINT_OUT_MIDI, buffer, sizeof(buffer))) {
-        MIDI_EventPacket_t event;
-        // TODO: this seems totally wrong? The midi task will never see any
-        // packets if we consume them here
-        recv_midi_packet(&event);
-    }
-}
 #endif
 
 #ifdef VIRTSER_ENABLE

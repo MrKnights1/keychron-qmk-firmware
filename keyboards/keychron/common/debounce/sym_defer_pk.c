@@ -2,7 +2,7 @@
 Copyright 2017 Alex Ong<the.onga@gmail.com>
 Copyright 2020 Andrei Purdea<andrei@purdea.ro>
 Copyright 2021 Simon Arlott
-Copyright 2024 @ keychron (https://www.keychron.com)
+Copyright 2024 ~ 2025 @ keychron (https://www.keychron.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -10,10 +10,10 @@ the Free Software Foundation, either version 2 of the License, or
 (at your option) any later version.
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -31,7 +31,6 @@ When no state changes have occured for DEBOUNCE milliseconds, we push the state.
 #    endif
 #endif
 
-
 #define ROW_SHIFTER ((matrix_row_t)1)
 
 typedef uint8_t debounce_counter_t;
@@ -43,7 +42,7 @@ static fast_timer_t        last_time;
 static bool                counters_need_update;
 static bool                cooked_changed;
 
-#    define DEBOUNCE_ELAPSED 0
+#define DEBOUNCE_ELAPSED 0
 
 static void update_debounce_counters_and_transfer_if_expired(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, uint8_t elapsed_time);
 static void start_debounce_counters(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows);
@@ -52,7 +51,7 @@ static void start_debounce_counters(matrix_row_t raw[], matrix_row_t cooked[], u
 void sym_defer_pk_debounce_init(uint8_t num_rows) {
     debounce_counters = (debounce_counter_t *)malloc(num_rows * MATRIX_COLS * sizeof(debounce_counter_t));
 
-    int i             = 0;
+    int i = 0;
     for (uint8_t r = 0; r < num_rows; r++) {
         for (uint8_t c = 0; c < MATRIX_COLS; c++) {
             debounce_counters[i++] = DEBOUNCE_ELAPSED;
@@ -125,7 +124,7 @@ static void start_debounce_counters(matrix_row_t raw[], matrix_row_t cooked[], u
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             if (delta & (ROW_SHIFTER << col)) {
                 if (*debounce_pointer == DEBOUNCE_ELAPSED) {
-                    *debounce_pointer    = debounce_time;;
+                    *debounce_pointer = debounce_time;
                     counters_need_update = true;
                 }
             } else {

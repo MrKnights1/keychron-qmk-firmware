@@ -10,17 +10,17 @@
     },
     "features": {
         "bootmagic": true,
-        "extrakey" : true,
-        "mousekey" : true,
-        "dip_switch" : true,
+        "extrakey": true,
+        "mousekey": true,
+        "dip_switch": true,
         "encoder": true,
         "encoder_map": true,
-        "nkro" : true,
+        "nkro": true,
         "rgb_matrix": true,
-        "raw" : true,
-        "send_string" : true
+        "raw": true,
+        "send_string": true
     },
-  "matrix_pins": {
+    "matrix_pins": {
         "cols": ["C6", "C7", "C8", "A13", "A14", "A15", "C10", "C11", "C13", "C14", "C15", "C0", "C1", "C2", "C3", "A0", "A1", "A2", "A3", "B10"],
         "rows": ["C12", "D2", "B3", "B4", "B5", "B6"]
     },
@@ -33,7 +33,7 @@
             }
         ]
     },
-    "dip_switch" :{
+    "dip_switch": {
         "pins": ["B12"]
     },
     "rgb_matrix": {
@@ -66,12 +66,12 @@
     "eeprom": {
         "wear_leveling": {
             "driver": "embedded_flash",
-            "logical_size": 2048,
-            "backing_size": 4096
+            "logical_size": 3072,
+            "backing_size": 6144
         }
     },
     "build": {
-        "debounce_type": "sym_eager_pk"
+        "debounce_type": "custom"
     },
-    "debounce": 20
+    "debounce": 50
 }

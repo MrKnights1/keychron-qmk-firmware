@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -22,5 +22,4 @@
 
 #define SIZE_OF_SNAP_CLICK_CONFIG_T 3
 
-#define EECONFIG_SIZE_SNAP_CLICK    (SNAP_CLICK_COUNT * SIZE_OF_SNAP_CLICK_CONFIG_T)
-
+#define EECONFIG_SIZE_SNAP_CLICK (SNAP_CLICK_COUNT * SIZE_OF_SNAP_CLICK_CONFIG_T)

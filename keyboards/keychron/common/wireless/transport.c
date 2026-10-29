@@ -1,4 +1,4 @@
-/* Copyright 2022~2023 @ lokher (https://www.keychron.com)
+/* Copyright 2022 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
@@ -23,10 +23,15 @@
 #    include <usb_main.h>
 #endif
 #include "transport.h"
-#include "lkbt51.h"
+#if defined(LK_WIRELESS_ENABLE)
+#    include "lkbt51.h"
+#elif defined(KC_BLUETOOTH_ENABLE)
+#    include "ckbt51.h"
+#endif
+#include "eeconfig_wireless.h"
 
-#ifndef REINIT_LED_DRIVER
-#    define REINIT_LED_DRIVER 0
+#ifdef REINIT_LED_DRIVER
+#    error "REINIT_LED_DRIVER is depreated, please use LED_DRIVER_REINIT_ON_TRANSPORT_CHANGE instead"
 #endif
 
 #if defined(PROTOCOL_CHIBIOS)
@@ -55,10 +60,11 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
         wireless_disconnect();
 
         uint32_t t = timer_read32();
-        while (timer_elapsed32(t) < 50) {
+        while (timer_elapsed32(t) < 100) {
             wireless_transport.task();
         }
         // wireless_connect();
+
         wireless_connect_ex(30, 0);
         // TODO: Clear USB report
         //}
@@ -73,6 +79,7 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
 }
 
 __attribute__((weak)) void p24g_transport_enable(bool enable) {
+#if defined(LK_WIRELESS_ENABLE)
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
         host_set_driver(&wireless_driver);
@@ -83,7 +90,7 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
         wireless_disconnect();
 
         uint32_t t = timer_read32();
-        while (timer_elapsed32(t) < 50) {
+        while (timer_elapsed32(t) < 100) {
             wireless_transport.task();
         }
         wireless_connect_ex(P24G_INDEX, 0);
@@ -98,6 +105,7 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
             wireless_driver.send_keyboard(&empty_report);
         }
     }
+#endif
 }
 
 __attribute__((weak)) void usb_power_connect(void) {}
@@ -108,7 +116,11 @@ __attribute__((weak)) void usb_transport_enable(bool enable) {
         if (host_get_driver() != &chibios_driver) {
 #if !defined(KEEP_USB_CONNECTION_IN_WIRELESS_MODE)
             usb_power_connect();
-            usb_start(&USBD1);
+#    if defined(FORCE_USB_DISCONNECT_ON_USB_TRANSPORT_ENABLE)
+            usbDisconnectBus(&USBD1);
+            wait_ms(30);
+#    endif
+            restart_usb_driver(&USBD1);
 #endif
             host_set_driver(&chibios_driver);
         }
@@ -128,7 +140,9 @@ __attribute__((weak)) void usb_transport_enable(bool enable) {
 
 void set_transport(transport_t new_transport) {
     if (transport != new_transport) {
-        if (transport == TRANSPORT_USB || ((transport != TRANSPORT_USB) && wireless_get_state() == WT_CONNECTED)) clear_keyboard();
+        if (transport == TRANSPORT_USB || ((transport != TRANSPORT_USB) && wireless_get_state() == WT_CONNECTED)) {
+            clear_keyboard();
+        }
 
         transport = new_transport;
 
@@ -140,6 +154,13 @@ void set_transport(transport_t new_transport) {
                 p24g_transport_enable(false);
                 wireless_disconnect();
                 lpm_timer_stop();
+                transport_changed(transport); // Need to be called before indicator_set()
+#if defined(KEYCOMBO_CONN_SWITCH_ENABLE)
+                if (USBD1.state == USB_ACTIVE)
+                    indicator_set(WT_CONNECTED, USB_HOST_INDEX);
+                else
+                    indicator_set(WT_RECONNECTING, USB_HOST_INDEX);
+#endif
                 break;
 
             case TRANSPORT_BLUETOOTH:
@@ -148,6 +169,7 @@ void set_transport(transport_t new_transport) {
                 bt_transport_enable(true);
                 usb_transport_enable(false);
                 lpm_timer_reset();
+                transport_changed(transport);
                 break;
 
             case TRANSPORT_P2P4:
@@ -156,13 +178,12 @@ void set_transport(transport_t new_transport) {
                 p24g_transport_enable(true);
                 usb_transport_enable(false);
                 lpm_timer_reset();
+                transport_changed(transport);
                 break;
 
             default:
                 break;
         }
-
-        transport_changed(transport);
     }
 }
 
@@ -170,15 +191,20 @@ transport_t get_transport(void) {
     return transport;
 }
 
-#if (REINIT_LED_DRIVER)
+#ifdef LED_DRIVER_REINIT_ON_TRANSPORT_CHANGE
 /* Changing transport may cause bronw-out reset of led driver
- * withoug MCU reset, which lead backlight to not work,
+ * without MCU reset, which lead backlight to not work,
  * reinit the led driver workgound this issue */
 static void reinit_led_drvier(void) {
+#    if defined(LED_MATRIX_ENABLE) && defined(LED_MATRIX_DRIVER_SHUTDOWN_ENABLE)
+    led_matrix_driver_shutdown();
+#    endif
+#    if defined(RGB_MATRIX_ENABLE) && defined(RGB_MATRIX_DRIVER_SHUTDOWN_ENABLE)
+    rgb_matrix_driver_shutdown();
+#    endif
+
     /* Wait circuit to discharge for a while */
-    systime_t start = chVTGetSystemTime();
-    while (chTimeI2MS(chVTTimeElapsedSinceX(start)) < 100) {
-    };
+    wait_ms(100);
 
 #    ifdef LED_MATRIX_ENABLE
     led_matrix_init();
@@ -191,9 +217,20 @@ static void reinit_led_drvier(void) {
 
 void transport_changed(transport_t new_transport) {
     kc_printf("transport_changed %d\n\r", new_transport);
+#ifdef KEYCOMBO_CONN_SWITCH_ENABLE
+    if (new_transport != TRANSPORT_USB) {
+#    if defined(LED_MATRIX_ENABLE)
+        led_matrix_set_suspend_state(false);
+#    endif
+#    if defined(RGB_MATRIX_ENABLE)
+        rgb_matrix_set_suspend_state(false);
+#    endif
+    }
+#else
     indicator_init();
+#endif
 
-#if (REINIT_LED_DRIVER)
+#ifdef LED_DRIVER_REINIT_ON_TRANSPORT_CHANGE
     reinit_led_drvier();
 #endif
 
@@ -209,35 +246,45 @@ void transport_changed(transport_t new_transport) {
     led_matrix_disable_time_reset();
 #    endif
 #endif
+    led_update_kb(host_keyboard_led_state());
 }
 
 void usb_remote_wakeup(void) {
+    usb_event_queue_task();
+
     if (USB_DRIVER.state == USB_SUSPENDED) {
+#if defined(WB32F3G71xx)
+        // wait_ms(300);
+        // if (!usb_power_connected()) return;
+#endif
         while (USB_DRIVER.state == USB_SUSPENDED) {
             wireless_pre_task();
             if (get_transport() != TRANSPORT_USB) {
                 suspend_wakeup_init_quantum();
                 return;
             }
+#if defined(KEYCOMBO_CONN_SWITCH_ENABLE)
+            if (get_transport() == TRANSPORT_USB && !usb_power_connected()) return;
+#endif
             /* Do this in the suspended state */
             suspend_power_down(); // on AVR this deep sleeps for 15ms
             /* Remote wakeup */
             if (suspend_wakeup_condition()
 #ifdef ENCODER_ENABLE
-                || encoder_read()
+                || encoder_task()
 #endif
-                ) {
+            ) {
                 usbWakeupHost(&USB_DRIVER);
                 wait_ms(300);
 #ifdef MOUSEKEY_ENABLE
                 // Wiggle to wakeup
-                mousekey_on(KC_MS_LEFT);
+                mousekey_on(MS_LEFT);
                 mousekey_send();
                 wait_ms(10);
-                mousekey_on(KC_MS_RIGHT);
+                mousekey_on(MS_RGHT);
                 mousekey_send();
                 wait_ms(10);
-                mousekey_off((KC_MS_RIGHT));
+                mousekey_off((MS_RGHT));
                 mousekey_send();
 #else
                 set_mods(0x02);
@@ -254,6 +301,15 @@ void usb_remote_wakeup(void) {
 #ifdef MOUSEKEY_ENABLE
         mousekey_send();
 #endif /* MOUSEKEY_ENABLE */
-        usb_event_queue_task();
     }
 }
+
+#ifdef KEYCOMBO_CONN_SWITCH_ENABLE
+uint8_t eeprom_read_transport(void) {
+    return eeprom_read_byte((uint8_t *)EECONFIG_BASE_WIRELESS_CONFIG + OFFSET_TRANSPORT);
+}
+
+void eeprom_update_transport(uint8_t val) {
+    eeprom_write_byte((uint8_t *)EECONFIG_BASE_WIRELESS_CONFIG + OFFSET_TRANSPORT, val);
+}
+#endif

@@ -1,4 +1,4 @@
-/* Copyright 2023 @ lokher (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 /******************************************************************************
@@ -28,8 +28,34 @@
 #include "lpm.h"
 #include "lpm_stm32f401.h"
 #include "config.h"
+#include "hal.h"
 
 static pm_t power_mode = PM_RUN;
+
+void lpm_post_enter_low_power(void) {
+    /*  USB D+/D- */
+    palSetLineMode(A12, PAL_MODE_INPUT_PULLDOWN);
+    palSetLineMode(A11, PAL_MODE_INPUT_PULLDOWN);
+}
+
+void lpm_pre_wakeup(void) {
+    /*  USB D+/D- */
+#if (HAL_USE_USB == TRUE)
+    palSetLineMode(A11, PAL_STM32_OTYPE_PUSHPULL | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUPDR_FLOATING | PAL_MODE_ALTERNATE(10U));
+    palSetLineMode(A12, PAL_STM32_OTYPE_PUSHPULL | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUPDR_FLOATING | PAL_MODE_ALTERNATE(10U));
+#endif
+
+    /* SPI */
+#if (HAL_USE_SPI == TRUE)
+    palSetLineMode(SPI_SCK_PIN, PAL_MODE_ALTERNATE(5));
+    if (SPI_MOSI_PIN != NO_PIN) {
+        palSetLineMode(SPI_MOSI_PIN, PAL_MODE_ALTERNATE(5));
+    }
+    if (SPI_MISO_PIN != NO_PIN) {
+        palSetLineMode(SPI_MISO_PIN, PAL_MODE_ALTERNATE(5));
+    }
+#endif
+}
 
 bool lpm_set(pm_t mode) {
     bool ret = true;
@@ -83,7 +109,7 @@ bool lpm_set(pm_t mode) {
     return ret;
 }
 
-void enter_power_mode(pm_t mode) {
+void lpm_standby(pm_t mode) {
 #if STM32_HSE_ENABLED
     /* Switch to HSI */
     RCC->CFGR = (RCC->CFGR & (~STM32_SW_MASK)) | STM32_SW_HSI;
@@ -103,10 +129,10 @@ void enter_power_mode(pm_t mode) {
     __WFI();
 
     SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
+}
 
-    writePinLow(BLUETOOTH_INT_OUTPUT_PIN);
+void lpm_wakeup_init(void) {
     stm32_clock_init();
-    writePinHigh(BLUETOOTH_INT_OUTPUT_PIN);
 }
 
 void usb_power_connect(void) {}

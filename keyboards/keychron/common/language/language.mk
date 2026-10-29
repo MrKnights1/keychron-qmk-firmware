@@ -1,7 +1,7 @@
-LANGUAGE_DIR = common/language
+LANGUAGE_DIR = $(TOP_DIR)/keyboards/keychron/common/language
 SRC += \
      $(LANGUAGE_DIR)/language.c \
 
-VPATH += $(TOP_DIR)/keyboards/keychron/$(LANGUAGE_DIR)
+VPATH += $(LANGUAGE_DIR)
 
 OPT_DEFS += -DLANGUAGE_ENABLE

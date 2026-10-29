@@ -25,9 +25,7 @@
 #define DEFAULT_LED_G  0
 #define DEFAULT_LED_B  0
 
-// Bump whenever the struct layout changes, so stale EEPROM bytes are migrated or reset instead of misread.
-#define SPAM_MACRO_CONFIG_VERSION 1
-
+// Stored in QMK's keymap EEPROM datablock; changing the layout requires bumping SPAM_MACRO_CONFIG_VERSION in config.h.
 typedef struct __attribute__((__packed__)) {
     uint16_t steer_hold_ms;
     uint16_t steer_tap_hold_ms;
@@ -44,17 +42,10 @@ typedef struct __attribute__((__packed__)) {
     uint8_t  spam_led_r, spam_led_g, spam_led_b;
     uint8_t  pilot_led_r, pilot_led_g, pilot_led_b;
     uint16_t pilot_binds[PILOT_BIND_COUNT];
-    uint8_t  version;
 } spam_macro_config_t;
-
-typedef enum {
-    SPAM_CONFIG_CURRENT,  // valid as read
-    SPAM_CONFIG_MIGRATED, // pre-binding layout: settings kept, bindings cleared
-    SPAM_CONFIG_RESET,    // unusable: replaced with defaults
-} spam_config_result_t;
 
 void spam_config_defaults(spam_macro_config_t *cfg);
 
-// Validates a config read from EEPROM, migrating or resetting it in place, and loads its
-// bindings into pilot_remap. Anything but SPAM_CONFIG_CURRENT must be written back.
-spam_config_result_t spam_config_load(spam_macro_config_t *cfg);
+// Validates a config read from EEPROM and loads its bindings into pilot_remap. Returns false when
+// it was unusable and has been replaced with defaults in place, which must then be written back.
+bool spam_config_load(spam_macro_config_t *cfg);

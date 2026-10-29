@@ -1,4 +1,4 @@
-/* Copyright 2023~2025 @ lokher (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,17 +7,20 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
 #include "config.h"
 #include "wireless.h"
+
+#define P24G_HOST_INDEX 24
+#define USB_HOST_INDEX 34
 
 /* Indication of pairing */
 #ifndef INDICATOR_CONFIG_PARING
@@ -42,6 +45,11 @@
 /* Uint: Second */
 #ifndef DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT
 #    define DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT 40
+#endif
+
+/* Uint: Second */
+#ifndef USB_DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT
+#    define USB_DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT 3
 #endif
 
 /* Uint: Second, the timer restarts on key activities. */
@@ -70,9 +78,8 @@
 #    pragma error("HOST_COUNT max value is 6")
 #endif
 
-#ifndef P24G_HOST_DEVICES_COUNT
-#    define P24G_HOST_DEVICES_COUNT 1
-#endif
+/* DO NOT change */
+#define P24G_HOST_DEVICES_COUNT 1
 
 typedef enum {
     INDICATOR_NONE,
@@ -83,7 +90,7 @@ typedef enum {
     INDICATOR_LAST,
 } indicator_type_t;
 
-typedef struct {
+typedef struct PACKED {
     indicator_type_t type;
     uint32_t         on_time;
     uint32_t         off_time;
@@ -93,7 +100,7 @@ typedef struct {
     uint32_t         elapsed;
 } indicator_config_t;
 
-typedef struct {
+typedef struct PACKED {
     uint8_t value;
     bool    saved;
 } backlight_state_t;
@@ -103,12 +110,10 @@ void indicator_set(wt_state_t state, uint8_t host_index);
 void indicator_set_backlit_timeout(uint32_t time);
 void indicator_reset_backlit_time(void);
 bool indicator_hook_key(uint16_t keycode);
-void indicator_enable(void);
-void indicator_disable(void);
 void indicator_stop(void);
 void indicator_eeconfig_reload(void);
-bool indicator_is_enabled(void);
 bool indicator_is_running(void);
 void indicator_battery_low_enable(bool enable);
+void indicator_enable_direct_led_off(bool enable);
 
 void indicator_task(void);

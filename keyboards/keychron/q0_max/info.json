@@ -10,15 +10,14 @@
     },
     "features": {
         "bootmagic": true,
-        "extrakey" : true,
-        "mousekey" : true,
-        "dip_switch" : false,
+        "extrakey": true,
+        "mousekey": true,
         "encoder": true,
         "encoder_map": true,
-        "nkro" : true,
+        "nkro": true,
         "rgb_matrix": true,
-        "raw" : true,
-        "sendstring" : true
+        "raw": true,
+        "send_string": true
     },
     "matrix_pins": {
         "cols": ["B15", "C6", "C7", "C8", "C9"],
@@ -32,6 +31,9 @@
                 "pin_b": "B14"
             }
         ]
+    },
+    "bootmagic": {
+        "matrix": [0, 1]
     },
     "rgb_matrix": {
         "driver": "snled27351_spi",
@@ -68,7 +70,7 @@
         }
     },
     "build": {
-        "debounce_type": "sym_eager_pk"
+        "debounce_type": "custom"
     },
-    "debounce": 20
+    "debounce": 50
 }

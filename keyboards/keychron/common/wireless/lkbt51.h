@@ -1,4 +1,4 @@
-/* Copyright 2023 @ Keychron (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,29 +7,34 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
 #include "stdint.h"
 #include "hal.h"
-
-#ifndef WT_DRIVER
-#    define WT_DRIVER SPID1
-#endif
+#include "config.h"
 
 // Error checking
 #if HAL_USE_SPI == FALSE
 #    error "Please enable SPI to use LKBT51"
 #endif
 
-#if !STM32_SPI_USE_SPI1 && !STM32_SPI_USE_SPI2 && !STM32_SPI_USE_SPI3
-#    error "WT driver activated but no SPI peripheral assigned"
+#if defined(WB32F3G71xx)
+#    ifndef WT_DRIVER
+#        define WT_DRIVER SPIDQ
+#    endif
+#endif
+
+#if defined(MCU_STM32)
+#    ifndef WT_DRIVER
+#        define WT_DRIVER SPID1
+#    endif
 #endif
 
 #define PACKECT_HEADER_LEN 5
@@ -105,12 +110,16 @@ void lkbt51_send_nkro(uint8_t* report);
 void lkbt51_send_consumer(uint16_t report);
 void lkbt51_send_system(uint16_t report);
 void lkbt51_send_mouse(uint8_t* report);
+void lkbt51_send_joysticks(uint8_t* report);
+void lkbt51_send_xinput(uint8_t* report);
+void lkbt51_send_raw_hid(uint8_t* data, uint8_t len);
 
 void lkbt51_become_discoverable(uint8_t host_idx, void* param);
 void lkbt51_connect(uint8_t hostIndex, uint16_t timeout);
 void lkbt51_disconnect(void);
 void lkbt51_switch_host(uint8_t hostIndex);
 void lkbt51_read_state_reg(uint8_t reg, uint8_t len);
+void lkbt51_set_xinput_mode(bool enable);
 
 void lkbt51_update_bat_lvl(uint8_t bat_lvl);
 void lkbt51_update_bat_state(uint8_t bat_state);
@@ -120,6 +129,7 @@ void lkbt51_set_param(module_param_t* param);
 void lkbt51_get_param(module_param_t* param);
 void lkbt51_set_local_name(const char* name);
 void lkbt51_get_local_name(void);
+void lkbt51_set_ms_swift_pair_name(const char* name);
 
 void lkbt51_factory_reset(uint8_t p2p4g_clr_msk);
 void lkbt51_int_pin_test(bool enable);

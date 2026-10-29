@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string.h>
@@ -31,7 +31,7 @@ void dfu_info_rx(uint8_t *data, uint8_t length) {
     uint8_t i = 2;
 
     data[i++] = 0;  // success
-    data[i++] = DFU_INFO_CHIP,
+    data[i++] = DFU_INFO_CHIP;
     data[i++] = strlen(STR(QMK_MCU));
     memcpy(&data[i], STR(QMK_MCU), strlen(STR(QMK_MCU)));
     i += strlen(STR(QMK_MCU));
