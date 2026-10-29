@@ -1,4 +1,4 @@
-/* Copyright 2023 @ Keychron (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "stdint.h"
@@ -20,7 +20,13 @@
 #endif
 #include "quantum_keycodes.h"
 
+void wireless_common_init(void);
+#ifdef LK_WIRELESS_ENABLE
 void lkbt51_param_init(void);
+#endif
+#if defined(KC_BLUETOOTH_ENABLE)
+void ckbt51_param_init(void);
+#endif
 
 bool process_record_keychron_wireless(uint16_t keycode, keyrecord_t *record);
 void keychron_wireless_common_task(void);

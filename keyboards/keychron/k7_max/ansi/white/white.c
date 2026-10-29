@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2026 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
@@ -23,78 +23,78 @@ const snled27351_led_t g_snled27351_leds[LED_MATRIX_LED_COUNT] = {
  *   driver
  *   |  LED address
  *   |  | */
-    {0, E_1},
-    {0, E_2},
-    {0, E_3},
-    {0, E_4},
-    {0, E_5},
-    {0, E_6},
-    {0, E_7},
-    {0, E_8},
-    {0, E_9},
-    {0, E_10},
-    {0, E_11},
-    {0, E_12},
-    {0, E_13},
-    {0, E_14},
-    {0, E_16},
+    {0, CB5_CA1},
+    {0, CB5_CA2},
+    {0, CB5_CA3},
+    {0, CB5_CA4},
+    {0, CB5_CA5},
+    {0, CB5_CA6},
+    {0, CB5_CA7},
+    {0, CB5_CA8},
+    {0, CB5_CA9},
+    {0, CB5_CA10},
+    {0, CB5_CA11},
+    {0, CB5_CA12},
+    {0, CB5_CA13},
+    {0, CB5_CA14},
+    {0, CB5_CA16},
 
-    {0, D_1},
-    {0, D_2},
-    {0, D_3},
-    {0, D_4},
-    {0, D_5},
-    {0, D_6},
-    {0, D_7},
-    {0, D_8},
-    {0, D_9},
-    {0, D_10},
-    {0, D_11},
-    {0, D_12},
-    {0, D_13},
-    {0, D_14},
-    {0, D_16},
+    {0, CB4_CA1},
+    {0, CB4_CA2},
+    {0, CB4_CA3},
+    {0, CB4_CA4},
+    {0, CB4_CA5},
+    {0, CB4_CA6},
+    {0, CB4_CA7},
+    {0, CB4_CA8},
+    {0, CB4_CA9},
+    {0, CB4_CA10},
+    {0, CB4_CA11},
+    {0, CB4_CA12},
+    {0, CB4_CA13},
+    {0, CB4_CA14},
+    {0, CB4_CA16},
 
-    {0, C_1},
-    {0, C_2},
-    {0, C_3},
-    {0, C_4},
-    {0, C_5},
-    {0, C_6},
-    {0, C_7},
-    {0, C_8},
-    {0, C_9},
-    {0, C_10},
-    {0, C_11},
-    {0, C_12},
-    {0, C_14},
-    {0, C_16},
+    {0, CB3_CA1},
+    {0, CB3_CA2},
+    {0, CB3_CA3},
+    {0, CB3_CA4},
+    {0, CB3_CA5},
+    {0, CB3_CA6},
+    {0, CB3_CA7},
+    {0, CB3_CA8},
+    {0, CB3_CA9},
+    {0, CB3_CA10},
+    {0, CB3_CA11},
+    {0, CB3_CA12},
+    {0, CB3_CA14},
+    {0, CB3_CA16},
 
-    {0, B_1},
-    {0, B_3},
-    {0, B_4},
-    {0, B_5},
-    {0, B_6},
-    {0, B_7},
-    {0, B_8},
-    {0, B_9},
-    {0, B_10},
-    {0, B_11},
-    {0, B_12},
-    {0, B_13},
-    {0, B_14},
-    {0, B_16},
+    {0, CB2_CA1},
+    {0, CB2_CA3},
+    {0, CB2_CA4},
+    {0, CB2_CA5},
+    {0, CB2_CA6},
+    {0, CB2_CA7},
+    {0, CB2_CA8},
+    {0, CB2_CA9},
+    {0, CB2_CA10},
+    {0, CB2_CA11},
+    {0, CB2_CA12},
+    {0, CB2_CA13},
+    {0, CB2_CA14},
+    {0, CB2_CA16},
 
-    {0, A_1},
-    {0, A_2},
-    {0, A_3},
-    {0, A_7},
-    {0, A_11},
-    {0, A_12},
-    {0, A_13},
-    {0, A_14},
-    {0, A_15},
-    {0, A_16},
+    {0, CB1_CA1},
+    {0, CB1_CA2},
+    {0, CB1_CA3},
+    {0, CB1_CA7},
+    {0, CB1_CA11},
+    {0, CB1_CA12},
+    {0, CB1_CA13},
+    {0, CB1_CA14},
+    {0, CB1_CA15},
+    {0, CB1_CA16},
 };
 
 #define __ NO_LED
@@ -117,7 +117,7 @@ led_config_t g_led_config = {
         {2,64}, {21,64}, {39,64},                            { 95,64},                               {149,64}, {164,64}, {179,64}, {194,64}, {209,64}, {224,64}
     },
     {
-        // RGB LED Index to Flag
+        // LED Index to Flag
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,    1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,    1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,    1,    1,

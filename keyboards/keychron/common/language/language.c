@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,17 +7,18 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string.h>
 #include "eeconfig_kb.h"
 #include "raw_hid.h"
 #include "eeconfig.h"
+#include "eeprom.h"
 #include "matrix.h"
 #include "quantum.h"
 #include "keychron_raw_hid.h"
@@ -25,7 +26,7 @@
 static uint8_t lang;
 
 static bool language_get(uint8_t *data) {
-     eeprom_read_block(&lang, (uint8_t *)(EECONFIG_BASE_LANGUAGE), sizeof(lang));
+    eeprom_read_block(&lang, (uint8_t *)(EECONFIG_BASE_LANGUAGE), sizeof(lang));
     data[1] = lang;
 
     return true;

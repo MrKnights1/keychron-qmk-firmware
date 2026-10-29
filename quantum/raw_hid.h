@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#define RAW_HID_SRC_USB 0
+
 /**
  * \file
  *
@@ -18,7 +20,7 @@
  * \param data A pointer to the received data. Always 32 bytes in length.
  * \param length The length of the buffer. Always 32.
  */
-void raw_hid_receive(uint8_t *data, uint8_t length);
+void raw_hid_receive(uint8_t src, uint8_t *data, uint8_t length);
 
 /**
  * \brief Send an HID report.

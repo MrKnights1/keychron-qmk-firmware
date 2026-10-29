@@ -183,7 +183,43 @@ void usb_endpoint_out_configure_cb(usb_endpoint_out_t *endpoint) {
     (void)usb_start_receive(endpoint);
 }
 
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+void usb_endpoint_in_tx(USBDriver *usbp, usbep_t ep) {
+    usb_endpoint_in_t *endpoint = usbp->in_params[ep - 1U];
+    size_t             n;
+    uint8_t *          buffer;
+
+    if (endpoint == NULL) {
+        return;
+    }
+
+    osalSysLockFromISR();
+
+    /* Checking if there is a buffer ready for transmission.*/
+    buffer = obqGetFullBufferI(&endpoint->obqueue, &n);
+
+    if (buffer != NULL) {
+        /* The endpoint cannot be busy, we are in the context of the callback,
+           so it is safe to transmit without a check.*/
+        usbStartTransmitI(usbp, ep, buffer, n);
+    } else if ((usbp->epc[ep]->ep_mode == USB_EP_MODE_TYPE_BULK) && (usbp->epc[ep]->in_state->txsize > 0U) && ((usbp->epc[ep]->in_state->txsize & ((size_t)usbp->epc[ep]->in_maxsize - 1U)) == 0U)) {
+        /* Transmit zero sized packet in case the last one has maximum allowed
+         * size. Otherwise the recipient may expect more data coming soon and
+         * not return buffered data to app. See section 5.8.3 Bulk Transfer
+         * Packet Size Constraints of the USB Specification document. */
+        usbStartTransmitI(usbp, ep, usbp->setup, 0);
+    } else {
+        /* Nothing to transmit.*/
+    }
+
+    osalSysUnlockFromISR();
+}
+#endif
+
 void usb_endpoint_in_tx_complete_cb(USBDriver *usbp, usbep_t ep) {
+#if defined(USB_REPORT_INTERVAL_ENABLE)
+    if (ep == KEYBOARD_IN_EPNUM || ep == SHARED_IN_EPNUM) usbp->epc[ep]->in_state->report_interval_count = 0;
+#endif
     usb_endpoint_in_t *endpoint = usbp->in_params[ep - 1U];
     size_t             n;
     uint8_t *          buffer;

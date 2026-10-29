@@ -1,4 +1,4 @@
-/* Copyright 2023~2025 @ lokher (https://www.keychron.com)
+/* Copyright 2023~2024 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -30,6 +30,7 @@ typedef enum {
     EVT_HID_SET_PROTOCOL,
     EVT_HID_INDICATOR,
     EVT_CONECTION_INTERVAL,
+    EVT_RAW_HID,
 } event_type_t;
 
 typedef struct {
@@ -40,6 +41,7 @@ typedef struct {
         uint8_t led;       /* Parameters to EVT_HID_INDICATOR event */
         uint8_t protocol;  /* Parameters to EVT_HID_SET_PROTOCOL event */
         uint8_t interval;  /* Parameters to EVT_CONECTION_INTERVAL event */
+        uint8_t *raw_hid_data;
     } params;
     uint8_t data;
 } wireless_event_t;

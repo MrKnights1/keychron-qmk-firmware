@@ -1,4 +1,4 @@
-/* Copyright 2023 @ lokher (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -31,3 +31,10 @@
 #ifndef STOP_MODE_LOW_POWER_DEEPSLEEP
 #    define STOP_MODE_LOW_POWER_DEEPSLEEP TRUE
 #endif
+
+typedef enum {
+    PM_RUN,
+    PM_SLEEP,
+    PM_STOP,
+    PM_STANDBY,
+} pm_t;

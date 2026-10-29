@@ -1,4 +1,4 @@
-/* Copyright 2024 Keychron
+/* Copyright 2024 ~ 2026 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,16 +7,16 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
-#define _CHIBIOS_HAL_CONF_VER_8_0_
+#define _CHIBIOS_HAL_CONF_VER_8_4_
 
 #define HAL_USE_SPI TRUE
 

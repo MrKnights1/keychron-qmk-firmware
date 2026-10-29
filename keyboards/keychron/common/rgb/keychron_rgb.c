@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include QMK_KEYBOARD_H
@@ -19,19 +19,24 @@
 #include "keychron_common.h"
 #include "keychron_rgb_type.h"
 #include "eeconfig_kb.h"
+#include "nvm_eeprom_eeconfig_internal.h"
+#include "eeprom.h"
 #include "usb_main.h"
 #include "color.h"
-#ifdef LK_WIRELESS_ENABLE
-#include "transport.h"
+#include "backlit_indicator.h"
+#if defined(LK_WIRELESS_ENABLE) || defined(KC_BLUETOOTH_ENABLE)
+#    include "transport.h"
+#    include "wireless.h"
 #endif
 #include <lib/lib8tion/lib8tion.h>
+#include "config.h"
 
 #if defined(KEYCHRON_RGB_ENABLE) && defined(EECONFIG_SIZE_CUSTOM_RGB)
 
 #    define PER_KEY_RGB_VER 0x0001
 
 #    define OFFSET_OS_INDICATOR ((uint8_t *)(EECONFIG_BASE_CUSTOM_RGB))
-#    define OFFSET_RETAIL_DEMO  (OFFSET_OS_INDICATOR + sizeof(os_indicator_config_t))
+#    define OFFSET_RETAIL_DEMO (OFFSET_OS_INDICATOR + sizeof(os_indicator_config_t))
 #    define OFFSET_PER_KEY_RGB_TYPE (OFFSET_RETAIL_DEMO + sizeof(retail_demo_enable))
 #    define OFFSET_PER_KEY_RGBS (OFFSET_PER_KEY_RGB_TYPE + sizeof(per_key_rgb_type))
 #    define OFFSET_LAYER_FLAGS (OFFSET_PER_KEY_RGBS + sizeof(per_key_led))
@@ -47,7 +52,7 @@ enum {
     PER_KEY_RGB_GET_TYPE,
     PER_KEY_RGB_SET_TYPE,
     PER_KEY_RGB_GET_COLOR,
-    PER_KEY_RGB_SET_COLOR,  //10
+    PER_KEY_RGB_SET_COLOR, // 10
     MIXED_EFFECT_RGB_GET_INFO,
     MIXED_EFFECT_RGB_GET_REGIONS,
     MIXED_EFFECT_RGB_SET_REGIONS,
@@ -55,15 +60,15 @@ enum {
     MIXED_EFFECT_RGB_SET_EFFECT_LIST,
 };
 
-extern uint8_t  retail_demo_enable;
-extern uint8_t         per_key_rgb_type;
-extern HSV             per_key_led[RGB_MATRIX_LED_COUNT];
-extern HSV default_per_key_led[RGB_MATRIX_LED_COUNT];
+extern uint8_t retail_demo_enable;
+extern uint8_t per_key_rgb_type;
+extern HSV     per_key_led[RGB_MATRIX_LED_COUNT];
+extern HSV     default_per_key_led[RGB_MATRIX_LED_COUNT];
 
 extern uint8_t         regions[RGB_MATRIX_LED_COUNT];
 extern uint8_t         rgb_regions[RGB_MATRIX_LED_COUNT];
 extern effect_config_t effect_list[EFFECT_LAYERS][EFFECTS_PER_LAYER];
-extern uint8_t default_region[RGB_MATRIX_LED_COUNT];
+extern uint8_t         default_region[RGB_MATRIX_LED_COUNT];
 
 os_indicator_config_t os_ind_cfg;
 
@@ -71,12 +76,12 @@ extern void update_mixed_rgb_effect_count(void);
 
 void eeconfig_reset_custom_rgb(void) {
     os_ind_cfg.disable.raw = 0;
-    os_ind_cfg.hsv.s = 0;
+    os_ind_cfg.hsv.s       = 0;
     os_ind_cfg.hsv.h = os_ind_cfg.hsv.v = 0xFF;
 
     eeprom_update_block(&os_ind_cfg, OFFSET_OS_INDICATOR, sizeof(os_ind_cfg));
     retail_demo_enable = 0;
-    eeprom_read_block(&retail_demo_enable, (uint8_t *)(OFFSET_RETAIL_DEMO), sizeof(retail_demo_enable));
+    eeprom_update_block(&retail_demo_enable, (uint8_t *)(OFFSET_RETAIL_DEMO), sizeof(retail_demo_enable));
     per_key_rgb_type = 0;
     eeprom_update_block(&per_key_rgb_type, OFFSET_PER_KEY_RGB_TYPE, sizeof(per_key_rgb_type));
 
@@ -89,15 +94,15 @@ void eeconfig_reset_custom_rgb(void) {
     memset(effect_list, 0, sizeof(effect_list));
 
     effect_list[0][0].effect = 5;
-    effect_list[0][0].sat = 255;
-    effect_list[0][0].speed = 127;
-    effect_list[0][0].time = 5000;
+    effect_list[0][0].sat    = 255;
+    effect_list[0][0].speed  = 127;
+    effect_list[0][0].time   = 5000;
 
     effect_list[1][0].effect = 2;
-    effect_list[1][0].hue = 0;
-    effect_list[1][0].sat = 255;
-    effect_list[1][0].speed = 127;
-    effect_list[1][0].time = 5000;
+    effect_list[1][0].hue    = 0;
+    effect_list[1][0].sat    = 255;
+    effect_list[1][0].speed  = 127;
+    effect_list[1][0].time   = 5000;
 
     eeprom_update_block(effect_list, OFFSET_EFFECT_LIST, sizeof(effect_list));
     update_mixed_rgb_effect_count();
@@ -118,7 +123,6 @@ void eeconfig_init_custom_rgb(void) {
     eeprom_read_block(regions, OFFSET_LAYER_FLAGS, sizeof(regions));
     eeprom_read_block(effect_list, OFFSET_EFFECT_LIST, sizeof(effect_list));
     update_mixed_rgb_effect_count();
-
 }
 
 void rgb_save_retail_demo(void) {
@@ -234,7 +238,7 @@ bool mixed_rgb_set_regions(uint8_t *data) {
 
     return true;
 }
-#define EFFECT_DATA_LEN  8
+#    define EFFECT_DATA_LEN 8
 
 static bool mixed_rgb_get_effect_list(uint8_t *data) {
     uint8_t region = data[0];
@@ -266,9 +270,9 @@ bool mixed_rgb_set_effect_list(uint8_t *data) {
 
     for (uint8_t i = 0; i < count; i++) {
         effect_list[region][start + i].effect = data[3 + i * EFFECT_DATA_LEN];
-        effect_list[region][start + i].hue = data[4 + i * EFFECT_DATA_LEN];
-        effect_list[region][start + i].sat = data[5 + i * EFFECT_DATA_LEN];
-        effect_list[region][start + i].speed = data[6 + i * EFFECT_DATA_LEN];
+        effect_list[region][start + i].hue    = data[4 + i * EFFECT_DATA_LEN];
+        effect_list[region][start + i].sat    = data[5 + i * EFFECT_DATA_LEN];
+        effect_list[region][start + i].speed  = data[6 + i * EFFECT_DATA_LEN];
         memcpy(&effect_list[region][start + i].time, &data[7 + i * EFFECT_DATA_LEN], 4);
     }
     update_mixed_rgb_effect_count();
@@ -288,22 +292,22 @@ static bool kc_rgb_save(void) {
 
 static bool get_indicators_config(uint8_t *data) {
     data[1] = 0
-#if defined(NUM_LOCK_INDEX) && !defined(DIM_NUM_LOCK)
-    | (1 << 0x00)
-#endif
-#if defined(CAPS_LOCK_INDEX) && !defined(DIM_CAPS_LOCK)
-    | (1 << 0x01)
-#endif
-#if defined(SCROLL_LOCK_INDEX)
-    | (1 << 0x02)
-#endif
-#if defined(COMPOSE_LOCK_INDEX)
-    | (1 << 0x03)
-#endif
-#if defined(KANA_LOCK_INDEX)
-    | (1 << 0x04)
-#endif
-;
+#    if defined(NUM_LOCK_INDEX) && !defined(DIM_NUM_LOCK)
+              | (1 << 0x00)
+#    endif
+#    if defined(CAPS_LOCK_INDEX) && !defined(DIM_CAPS_LOCK)
+              | (1 << 0x01)
+#    endif
+#    if defined(SCROLL_LOCK_INDEX)
+              | (1 << 0x02)
+#    endif
+#    if defined(COMPOSE_LOCK_INDEX)
+              | (1 << 0x03)
+#    endif
+#    if defined(KANA_LOCK_INDEX)
+              | (1 << 0x04)
+#    endif
+        ;
     data[2] = os_ind_cfg.disable.raw;
     data[3] = os_ind_cfg.hsv.h;
     data[4] = os_ind_cfg.hsv.s;
@@ -314,9 +318,9 @@ static bool get_indicators_config(uint8_t *data) {
 
 static bool set_indicators_config(uint8_t *data) {
     os_ind_cfg.disable.raw = data[0];
-    os_ind_cfg.hsv.h = data[1];
-    os_ind_cfg.hsv.s = data[2];
-    os_ind_cfg.hsv.v = data[3];
+    os_ind_cfg.hsv.h       = data[1];
+    os_ind_cfg.hsv.s       = data[2];
+    os_ind_cfg.hsv.v       = data[3];
 
     if (os_ind_cfg.hsv.v < 128) os_ind_cfg.hsv.v = 128;
     led_update_kb(host_keyboard_led_state());
@@ -324,7 +328,7 @@ static bool set_indicators_config(uint8_t *data) {
     return true;
 }
 
-void kc_rgb_matrix_rx(uint8_t *data, uint8_t length) {
+void kc_rgb_matrix_rx(bool usb, uint8_t *data, uint8_t length) {
     uint8_t cmd     = data[1];
     bool    success = true;
 
@@ -398,20 +402,34 @@ void kc_rgb_matrix_rx(uint8_t *data, uint8_t length) {
 }
 
 void os_state_indicate(void) {
-#    if defined(RGB_DISABLE_WHEN_USB_SUSPENDED) || defined(LED_DISABLE_WHEN_USB_SUSPENDED)
+#    if defined(RGB_MATRIX_SLEEP) || defined(LED_MATRIX_SLEEP)
+#        if defined(LK_WIRELESS_ENABLE) || defined(KC_BLUETOOTH_ENABLE)
     if (get_transport() == TRANSPORT_USB && USB_DRIVER.state == USB_SUSPENDED) return;
+#        else
+    if (USB_DRIVER.state == USB_SUSPENDED) return;
+#        endif
 #    endif
 
+#    if (defined(NUM_LOCK_INDEX) && !defined(DIM_NUM_LOCK)) || (defined(CAPS_LOCK_INDEX) && !defined(DIM_CAPS_LOCK)) || defined(SCROLL_LOCK_INDEX) || defined(COMPOSE_LOCK_INDEX) || defined(KANA_LOCK_INDEX)
     RGB rgb = hsv_to_rgb(os_ind_cfg.hsv);
+#    endif
 
 #    if defined(NUM_LOCK_INDEX)
     if (host_keyboard_led_state().num_lock && !os_ind_cfg.disable.num_lock) {
+#        if defined(DIM_NUM_LOCK)
+        SET_LED_OFF(DIM_NUM_LOCK);
+#        else
         rgb_matrix_set_color(NUM_LOCK_INDEX, rgb.r, rgb.g, rgb.b);
+#        endif
     }
 #    endif
 #    if defined(CAPS_LOCK_INDEX)
     if (host_keyboard_led_state().caps_lock && !os_ind_cfg.disable.caps_lock) {
+#        if defined(DIM_CAPS_LOCK)
+        SET_LED_OFF(CAPS_LOCK_INDEX);
+#        else
         rgb_matrix_set_color(CAPS_LOCK_INDEX, rgb.r, rgb.g, rgb.b);
+#        endif
     }
 #    endif
 #    if defined(SCROLL_LOCK_INDEX)
@@ -429,33 +447,76 @@ void os_state_indicate(void) {
         rgb_matrix_set_color(KANA_LOCK_INDEX, rgb.r, rgb.g, rgb.b);
     }
 #    endif
-    (void)rgb;
+#    if defined(WINLOCK_LED_LIST) || defined(WIN_LOCK_LED_PIN)
+    // TODO: check if we can use (get_transport() == TRANSPORT_USB || wireless_get_state() == WT_CONNECTED)
+
+    if (1
+#        if defined(LK_WIRELESS_ENABLE) || defined(KC_BLUETOOTH_ENABLE)
+        && (get_transport() == TRANSPORT_USB || ((get_transport() & TRANSPORT_WIRELESS) && wireless_get_state() == WT_CONNECTED))
+#        endif
+    ) {
+#        ifdef WIN_BASE_LAYER
+        if (get_highest_layer(default_layer_state) == WIN_BASE_LAYER)
+#        endif
+        {
+#        if defined(WINLOCK_LED_LIST)
+            uint8_t idx_list[] = WINLOCK_LED_LIST;
+            for (uint8_t i = 0; i < sizeof(idx_list); i++) {
+                if (keymap_config.no_gui) {
+#            ifdef DIM_WIN_LOCK
+                    SET_LED_OFF(idx_list[i]);
+#            else
+                    rgb_matrix_set_color(idx_list[i], 255, 0, 0);
+#            endif
+                }
+            }
+#        endif
+#        if defined(WIN_LOCK_LED_PIN)
+            gpio_set_pin_output_push_pull(WIN_LOCK_LED_PIN);
+            gpio_write_pin(WIN_LOCK_LED_PIN, keymap_config.no_gui ? WIN_LOCK_LED_PIN_ON_STATE : !WIN_LOCK_LED_PIN_ON_STATE);
+#        endif
+        }
+#        if defined(WIN_BASE_LAYER) && defined(WIN_LOCK_LED_PIN)
+        else {
+            gpio_set_pin_output_push_pull(WIN_LOCK_LED_PIN);
+            gpio_write_pin(WIN_LOCK_LED_PIN, !WIN_LOCK_LED_PIN_ON_STATE);
+        }
+#        endif
+    }
+#    endif
+}
+
+void rgb_matrix_none_indicators(void) {
+    os_state_indicate();
+    rgb_matrix_none_indicators_kb();
+    rgb_matrix_none_indicators_user();
 }
 
 bool process_record_keychron_rgb(uint16_t keycode, keyrecord_t *record) {
-    if (rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_MIXED_RGB || rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_PER_KEY_RGB) {
+    if ((rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_MIXED_RGB || rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_PER_KEY_RGB) && record->event.pressed) {
         switch (keycode) {
-            case RGB_HUI ... RGB_SAD:
+            case UG_HUEU ... UG_SATD:
                 return false;
 
-            case RGB_SPI:
-                if (rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_MIXED_RGB) {
-                    return false;
-                } else {
+            case UG_SPDU:
+                if (!rgb_matrix_is_enabled()) return false;
+
+                if (rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_PER_KEY_RGB) {
                     rgb_matrix_config.speed = qadd8(rgb_matrix_config.speed, RGB_MATRIX_SPD_STEP);
                     eeprom_write_byte((uint8_t *)EECONFIG_RGB_MATRIX + offsetof(rgb_config_t, speed), rgb_matrix_config.speed);
                 }
-                break;
-            case RGB_SPD:
-                if (rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_MIXED_RGB) {
-                    return false;
-                } else {
+                return false;
+
+            case UG_SPDD:
+                if (!rgb_matrix_is_enabled()) return false;
+
+                if (rgb_matrix_get_mode() == RGB_MATRIX_CUSTOM_PER_KEY_RGB) {
                     rgb_matrix_config.speed = qsub8(rgb_matrix_config.speed, RGB_MATRIX_SPD_STEP);
                     eeprom_write_byte((uint8_t *)EECONFIG_RGB_MATRIX + offsetof(rgb_config_t, speed), rgb_matrix_config.speed);
                 }
-                break;
+                return false;
 
-            case RGB_VAI:
+            case UG_VALU:
 #    ifdef RGB_MATRIX_BRIGHTNESS_TURN_OFF_VAL
                 if (!rgb_matrix_config.enable) {
                     rgb_matrix_toggle();
@@ -470,7 +531,7 @@ bool process_record_keychron_rgb(uint16_t keycode, keyrecord_t *record) {
                 eeprom_write_byte((uint8_t *)EECONFIG_RGB_MATRIX + offsetof(rgb_config_t, hsv.v), rgb_matrix_config.hsv.v);
                 return false;
 
-            case RGB_VAD:
+            case UG_VALD:
 #    ifdef RGB_MATRIX_BRIGHTNESS_TURN_OFF_VAL
                 if (rgb_matrix_config.enable && rgb_matrix_config.hsv.v > RGB_MATRIX_BRIGHTNESS_TURN_OFF_VAL)
 #    endif

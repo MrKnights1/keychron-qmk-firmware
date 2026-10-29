@@ -8,11 +8,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
@@ -25,8 +25,7 @@
 #    include "lufa.h"
 #endif
 #include "eeprom.h"
-
-#if (defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)) && defined(BAT_LEVEL_LED_LIST)
+#include "backlit_indicator.h"
 
 #ifndef BAT_LEVEL_GROWING_INTERVAL
 #    define BAT_LEVEL_GROWING_INTERVAL 150
@@ -51,7 +50,7 @@ enum {
     BAT_LVL_ANI_BLINK_ON,
 };
 
-static uint8_t  animation_state = 0;
+static uint8_t  animation_state          = 0;
 static uint32_t bat_lvl_ani_timer_buffer = 0;
 static uint8_t  bat_percentage;
 static uint8_t  cur_percentage;
@@ -63,21 +62,56 @@ static uint8_t r, g, b;
 extern indicator_config_t indicator_config;
 extern backlight_state_t  original_backlight_state;
 
+#ifdef INDICATOR_LED_PINS
+__attribute__((weak)) void bat_level_indicate(uint8_t percentage) {
+    pin_t   bat_lvl_led_pin_list[] = INDICATOR_LED_PINS;
+    uint8_t led_cnt                = sizeof(bat_lvl_led_pin_list) / sizeof(bat_lvl_led_pin_list[0]);
+
+    bat_level_stop();
+    animation_state = BAT_LVL_ANI_BLINK_ON;
+    cur_percentage  = 0;
+    time_interval   = 3000;
+
+    if ((percentage / 10) >= 8)
+        cur_percentage = 4;
+    else if ((percentage / 10) >= 6)
+        cur_percentage = 3;
+    else if ((percentage / 10) >= 3)
+        cur_percentage = 2;
+    else
+        cur_percentage = 1;
+
+    for (uint8_t i = 0; i < cur_percentage && i < led_cnt; i++) {
+        gpio_write_pin(bat_lvl_led_pin_list[i], LED_PIN_ON_STATE);
+    }
+}
+#endif
 void bat_level_animiation_start(uint8_t percentage) {
     /* Turn on backlight mode for indicator */
+    animation_state          = BAT_LVL_ANI_GROWING;
+    bat_lvl_ani_timer_buffer = timer_read32();
+#if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
     indicator_enable();
 
-    animation_state          = BAT_LVL_ANI_GROWING;
-    bat_percentage           = percentage;
-    bat_lvl_ani_timer_buffer = timer_read32();
-    cur_percentage           = 0;
-    time_interval            = BAT_LEVEL_GROWING_INTERVAL;
-#ifdef RGB_MATRIX_ENABLE
+    bat_percentage = percentage;
+    cur_percentage = 0;
+    time_interval  = BAT_LEVEL_GROWING_INTERVAL;
+#    ifdef RGB_MATRIX_ENABLE
     r = g = b = 255;
+#    endif
+#endif
+#ifdef INDICATOR_LED_PINS
+    bat_level_indicate(percentage);
 #endif
 }
 
 void bat_level_animiation_stop(void) {
+#if !defined(LED_MATRIX_ENABLE) && !defined(RGB_MATRIX_ENABLE)
+    pin_t bat_lvl_led_pin_list[INDICATOR_LED_COUNT] = INDICATOR_LED_PINS;
+    for (uint8_t i = 0; i < INDICATOR_LED_COUNT; i++) {
+        gpio_write_pin(bat_lvl_led_pin_list[i], !INDICATORS_LED_PIN_ON_STATE);
+    }
+#endif
     animation_state = BAT_LVL_ANI_NONE;
 }
 
@@ -86,8 +120,9 @@ bool bat_level_animiation_actived(void) {
 }
 
 void bat_level_animiation_indicate(void) {
-#ifdef LED_MATRIX_ENABLE
-    uint8_t  bat_lvl_led_list[10] = BAT_LEVEL_LED_LIST;
+#ifdef BAT_LEVEL_LED_LIST
+#    ifdef LED_MATRIX_ENABLE
+    uint8_t bat_lvl_led_list[10] = BAT_LEVEL_LED_LIST;
 
     for (uint8_t i = 0; i <= LED_MATRIX_LED_COUNT; i++) {
         led_matrix_set_value(i, 0);
@@ -96,10 +131,10 @@ void bat_level_animiation_indicate(void) {
     if (animation_state == BAT_LVL_ANI_GROWING || animation_state == BAT_LVL_ANI_BLINK_ON)
         for (uint8_t i = 0; i < cur_percentage / 10; i++)
             led_matrix_set_value(bat_lvl_led_list[i], 255);
-#endif
+#    endif
 
-#ifdef RGB_MATRIX_ENABLE
-    uint8_t  bat_lvl_led_list[10] = BAT_LEVEL_LED_LIST;
+#    ifdef RGB_MATRIX_ENABLE
+    uint8_t bat_lvl_led_list[10] = BAT_LEVEL_LED_LIST;
 
     for (uint8_t i = 0; i <= RGB_MATRIX_LED_COUNT; i++) {
         rgb_matrix_set_color(i, 0, 0, 0);
@@ -110,6 +145,7 @@ void bat_level_animiation_indicate(void) {
             rgb_matrix_set_color(bat_lvl_led_list[i], r, g, b);
         }
     }
+#    endif
 #endif
 }
 
@@ -140,10 +176,12 @@ void bat_level_animiation_update(void) {
 
         case BAT_LVL_ANI_BLINK_ON:
             animation_state = BAT_LVL_ANI_NONE;
+#if defined(RGB_MATRIX_ENABLE) || defined(LED_MATRIX_ENABLE)
             indicator_eeconfig_reload();
             if (indicator_config.value == 0 && !LED_DRIVER_IS_ENABLED()) {
                 indicator_disable();
             }
+#endif
             lpm_timer_reset();
             break;
 
@@ -155,9 +193,11 @@ void bat_level_animiation_update(void) {
 }
 
 void bat_level_animiation_task(void) {
-    if (animation_state && sync_timer_elapsed32(bat_lvl_ani_timer_buffer) > time_interval) {
+    if (animation_state && timer_elapsed32(bat_lvl_ani_timer_buffer) > time_interval) {
+#if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
         bat_level_animiation_update();
+#else
+        bat_level_animiation_stop();
+#endif
     }
 }
-
-#endif

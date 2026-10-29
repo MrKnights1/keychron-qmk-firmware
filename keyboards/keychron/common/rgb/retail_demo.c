@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string.h>
@@ -20,7 +20,11 @@
 #include "eeconfig.h"
 #include "matrix.h"
 #include "quantum.h"
-#ifdef LK_WIRELESS_ENABLE
+#include "eeprom.h"
+#include "nvm_eeprom_eeconfig_internal.h"
+#include "keychron_common.h"
+#include "factory_test.h"
+#if defined(LK_WIRELESS_ENABLE) || defined(KC_BLUETOOTH_ENABLE)
 #    include "transport.h"
 #endif
 
@@ -28,7 +32,7 @@
 
 #    ifndef RETAIL_DEMO_KEY_1
 #        ifdef RGB_MATRIX_ENABLE
-#            define RETAIL_DEMO_KEY_1 RGB_HUI
+#            define RETAIL_DEMO_KEY_1 UG_HUEU
 #        else
 #            define RETAIL_DEMO_KEY_1 KC_D
 #        endif
@@ -36,7 +40,7 @@
 
 #    ifndef RETAIL_DEMO_KEY_2
 #        ifdef RGB_MATRIX_ENABLE
-#            define RETAIL_DEMO_KEY_2 RGB_HUD
+#            define RETAIL_DEMO_KEY_2 UG_HUED
 #        else
 #            define RETAIL_DEMO_KEY_2 KC_E
 #        endif
@@ -47,7 +51,6 @@
 #    endif
 
 enum {
-    KEY_PRESS_FN          = 0x01 << 0,
     KEY_PRESS_D           = 0x01 << 1,
     KEY_PRESS_E           = 0x01 << 2,
     KEY_PRESS_RETAIL_DEMO = KEY_PRESS_FN | KEY_PRESS_D | KEY_PRESS_E,
@@ -89,7 +92,7 @@ bool process_record_retail_demo(uint16_t keycode, keyrecord_t *record) {
             break;
     }
 
-    if (retail_demo_enable && keycode >= RGB_TOG && keycode <= RGB_SPD) return false;
+    if (retail_demo_enable && keycode >= UG_TOGG && keycode <= UG_SPDD) return false;
 
     return true;
 }
@@ -158,7 +161,7 @@ static inline void retail_demo_timer_check(void) {
             retail_demo_enable = !retail_demo_enable;
 
             if (retail_demo_enable) {
-#    ifdef LK_WIRELESS_ENABLE
+#    if defined(LK_WIRELESS_ENABLE) || defined(KC_BLUETOOTH_ENABLE)
                 // Retail demo is allowed only in wireless mode
                 if (get_transport() != TRANSPORT_USB) {
                     retail_demo_enable = false;

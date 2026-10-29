@@ -29,6 +29,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #    include "encoder.h"
 #endif
 
+#ifdef DIP_SWITCH_MAP_ENABLE
+#    include "dip_switch.h"
+#endif
+
 #ifdef BACKLIGHT_ENABLE
 #    include "backlight.h"
 #endif
@@ -68,6 +72,9 @@ action_t action_for_keycode(uint16_t keycode) {
             action.code = ACTION_USAGE_SYSTEM(KEYCODE2SYSTEM(keycode));
             break;
         case CONSUMER_KEYCODE_RANGE:
+            action.code = ACTION_USAGE_CONSUMER(KEYCODE2CONSUMER(keycode));
+            break;
+        case RESERVED_KEYCODE_RAGE:
             action.code = ACTION_USAGE_CONSUMER(KEYCODE2CONSUMER(keycode));
             break;
 #endif
@@ -152,7 +159,7 @@ action_t action_for_keycode(uint16_t keycode) {
         case QK_LAYER_MOD ... QK_LAYER_MOD_MAX:
             mod          = mod_config(QK_LAYER_MOD_GET_MODS(keycode));
             action_layer = QK_LAYER_MOD_GET_LAYER(keycode);
-            action.code  = ACTION_LAYER_MODS(action_layer, (mod & 0x10) ? mod << 4 : mod);
+            action.code  = ACTION_LAYER_MODS(action_layer, (mod & 0x10) ? (mod & 0xF) << 4 : mod);
             break;
 #endif // NO_ACTION_LAYER
         case QK_MOD_TAP ... QK_MOD_TAP_MAX:
@@ -204,5 +211,13 @@ __attribute__((weak)) uint16_t keymap_key_to_keycode(uint8_t layer, keypos_t key
         return keycode_at_encodermap_location(layer, key.col, false);
     }
 #endif // ENCODER_MAP_ENABLE
+#ifdef DIP_SWITCH_MAP_ENABLE
+    else if (key.row == KEYLOC_DIP_SWITCH_ON && key.col < NUM_DIP_SWITCHES) {
+        return keycode_at_dip_switch_map_location(key.col, true);
+    } else if (key.row == KEYLOC_DIP_SWITCH_OFF && key.col < NUM_DIP_SWITCHES) {
+        return keycode_at_dip_switch_map_location(key.col, false);
+    }
+#endif // DIP_SWITCH_MAP_ENABLE
+
     return KC_NO;
 }

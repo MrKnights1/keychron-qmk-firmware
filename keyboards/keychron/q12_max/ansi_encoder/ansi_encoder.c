@@ -1,138 +1,137 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2026 @ Keychron (https://www.keychron.com)
  *
- * This program is free software : you can redistribute it and /or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.If not, see < http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
 
 // clang-format off
-
 #ifdef RGB_MATRIX_ENABLE
 const snled27351_led_t g_snled27351_leds[RGB_MATRIX_LED_COUNT] = {
 /* Refer to SNLED27351 manual for these locations
  *   driver
  *   |  R location
- *   |  |       G location
- *   |  |       |       B location
- *   |  |       |       | */
-    {0, D_15,   F_15,   E_15},
-    {0, D_16,   F_16,   E_16},
-    {0, G_16,   I_16,   H_16},
-    {0, G_15,   I_15,   H_15},
-    {0, G_14,   I_14,   H_14},
-    {0, G_13,   I_13,   H_13},
-    {0, G_12,   I_12,   H_12},
-    {0, G_11,   I_11,   H_11},
-    {0, G_10,   I_10,   H_10},
-    {0, G_9,    I_9,    H_9},
-    {0, G_8,    I_8,    H_8},
-    {0, G_7,    I_7,    H_7},
-    {0, G_6,    I_6,    H_6},
-    {0, G_5,    I_5,    H_5},
-    {0, G_4,    I_4,    H_4},
-    {0, G_3,    I_3,    H_3},
-    {0, G_2,    I_2,    H_2},
-    {0, G_1,    I_1,    H_1},
+ *   |  |           G location
+ *   |  |           |           B location
+ *   |  |           |           | */
+    {0, CB4_CA15,   CB6_CA15,   CB5_CA15},
+    {0, CB4_CA16,   CB6_CA16,   CB5_CA16},
+    {0, CB7_CA16,   CB9_CA16,   CB8_CA16},
+    {0, CB7_CA15,   CB9_CA15,   CB8_CA15},
+    {0, CB7_CA14,   CB9_CA14,   CB8_CA14},
+    {0, CB7_CA13,   CB9_CA13,   CB8_CA13},
+    {0, CB7_CA12,   CB9_CA12,   CB8_CA12},
+    {0, CB7_CA11,   CB9_CA11,   CB8_CA11},
+    {0, CB7_CA10,   CB9_CA10,   CB8_CA10},
+    {0, CB7_CA9,    CB9_CA9,    CB8_CA9},
+    {0, CB7_CA8,    CB9_CA8,    CB8_CA8},
+    {0, CB7_CA7,    CB9_CA7,    CB8_CA7},
+    {0, CB7_CA6,    CB9_CA6,    CB8_CA6},
+    {0, CB7_CA5,    CB9_CA5,    CB8_CA5},
+    {0, CB7_CA4,    CB9_CA4,    CB8_CA4},
+    {0, CB7_CA3,    CB9_CA3,    CB8_CA3},
+    {0, CB7_CA2,    CB9_CA2,    CB8_CA2},
+    {0, CB7_CA1,    CB9_CA1,    CB8_CA1},
 
-    {0, D_12,   F_12,   E_12},
-    {0, D_13,   F_13,   E_13},
-    {0, D_14,   F_14,   E_14},
-    {0, A_16,   C_16,   B_16},
-    {0, A_15,   C_15,   B_15},
-    {0, A_14,   C_14,   B_14},
-    {0, A_13,   C_13,   B_13},
-    {0, A_12,   C_12,   B_12},
-    {0, A_11,   C_11,   B_11},
-    {0, A_10,   C_10,   B_10},
-    {0, A_9,    C_9,    B_9},
-    {0, A_8,    C_8,    B_8},
-    {0, A_7,    C_7,    B_7},
-    {0, A_6,    C_6,    B_6},
-    {0, A_5,    C_5,    B_5},
-    {0, A_4,    C_4,    B_4},
-    {0, A_3,    C_3,    B_3},
-    {0, A_2,    C_2,    B_2},
-    {0, A_1,    C_1,    B_1},
+    {0, CB4_CA12,   CB6_CA12,   CB5_CA12},
+    {0, CB4_CA13,   CB6_CA13,   CB5_CA13},
+    {0, CB4_CA14,   CB6_CA14,   CB5_CA14},
+    {0, CB1_CA16,   CB3_CA16,   CB2_CA16},
+    {0, CB1_CA15,   CB3_CA15,   CB2_CA15},
+    {0, CB1_CA14,   CB3_CA14,   CB2_CA14},
+    {0, CB1_CA13,   CB3_CA13,   CB2_CA13},
+    {0, CB1_CA12,   CB3_CA12,   CB2_CA12},
+    {0, CB1_CA11,   CB3_CA11,   CB2_CA11},
+    {0, CB1_CA10,   CB3_CA10,   CB2_CA10},
+    {0, CB1_CA9,    CB3_CA9,    CB2_CA9},
+    {0, CB1_CA8,    CB3_CA8,    CB2_CA8},
+    {0, CB1_CA7,    CB3_CA7,    CB2_CA7},
+    {0, CB1_CA6,    CB3_CA6,    CB2_CA6},
+    {0, CB1_CA5,    CB3_CA5,    CB2_CA5},
+    {0, CB1_CA4,    CB3_CA4,    CB2_CA4},
+    {0, CB1_CA3,    CB3_CA3,    CB2_CA3},
+    {0, CB1_CA2,    CB3_CA2,    CB2_CA2},
+    {0, CB1_CA1,    CB3_CA1,    CB2_CA1},
 
-    {0, D_9,    F_9,    E_9},
-    {0, D_10,   F_10,   E_10},
-    {0, D_11,   F_11,   E_11},
-    {0, J_16,   L_16,   K_16},
-    {0, J_15,   L_15,   K_15},
-    {0, J_14,   L_14,   K_14},
-    {0, J_13,   L_13,   K_13},
-    {0, J_12,   L_12,   K_12},
-    {0, J_11,   L_11,   K_11},
-    {0, J_10,   L_10,   K_10},
-    {0, J_9,    L_9,    K_9},
-    {0, J_8,    L_8,    K_8},
-    {0, J_7,    L_7,    K_7},
-    {0, J_6,    L_6,    K_6},
-    {0, J_5,    L_5,    K_5},
-    {0, J_4,    L_4,    K_4},
-    {0, J_3,    L_3,    K_3},
-    {0, J_2,    L_2,    K_2},
-    {0, J_1,    L_1,    K_1},
+    {0, CB4_CA9,    CB6_CA9,    CB5_CA9},
+    {0, CB4_CA10,   CB6_CA10,   CB5_CA10},
+    {0, CB4_CA11,   CB6_CA11,   CB5_CA11},
+    {0, CB10_CA16,  CB12_CA16,  CB11_CA16},
+    {0, CB10_CA15,  CB12_CA15,  CB11_CA15},
+    {0, CB10_CA14,  CB12_CA14,  CB11_CA14},
+    {0, CB10_CA13,  CB12_CA13,  CB11_CA13},
+    {0, CB10_CA12,  CB12_CA12,  CB11_CA12},
+    {0, CB10_CA11,  CB12_CA11,  CB11_CA11},
+    {0, CB10_CA10,  CB12_CA10,  CB11_CA10},
+    {0, CB10_CA9,   CB12_CA9,   CB11_CA9},
+    {0, CB10_CA8,   CB12_CA8,   CB11_CA8},
+    {0, CB10_CA7,   CB12_CA7,   CB11_CA7},
+    {0, CB10_CA6,   CB12_CA6,   CB11_CA6},
+    {0, CB10_CA5,   CB12_CA5,   CB11_CA5},
+    {0, CB10_CA4,   CB12_CA4,   CB11_CA4},
+    {0, CB10_CA3,   CB12_CA3,   CB11_CA3},
+    {0, CB10_CA2,   CB12_CA2,   CB11_CA2},
+    {0, CB10_CA1,   CB12_CA1,   CB11_CA1},
 
-    {1, J_11,   L_11,   K_11},
-    {1, J_12,   L_12,   K_12},
-    {1, A_16,   C_16,   B_16},
-    {1, A_15,   C_15,   B_15},
-    {1, A_14,   C_14,   B_14},
-    {1, A_13,   C_13,   B_13},
-    {1, A_12,   C_12,   B_12},
-    {1, A_11,   C_11,   B_11},
-    {1, A_10,   C_10,   B_10},
-    {1, A_9,    C_9,    B_9},
-    {1, A_8,    C_8,    B_8},
-    {1, A_7,    C_7,    B_7},
-    {1, A_6,    C_6,    B_6},
-    {1, A_5,    C_5,    B_5},
-    {1, A_4,    C_4,    B_4},
-    {1, A_3,    C_3,    B_3},
-    {1, A_2,    C_2,    B_2},
+    {1, CB10_CA11,  CB12_CA11,  CB11_CA11},
+    {1, CB10_CA12,  CB12_CA12,  CB11_CA12},
+    {1, CB1_CA16,   CB3_CA16,   CB2_CA16},
+    {1, CB1_CA15,   CB3_CA15,   CB2_CA15},
+    {1, CB1_CA14,   CB3_CA14,   CB2_CA14},
+    {1, CB1_CA13,   CB3_CA13,   CB2_CA13},
+    {1, CB1_CA12,   CB3_CA12,   CB2_CA12},
+    {1, CB1_CA11,   CB3_CA11,   CB2_CA11},
+    {1, CB1_CA10,   CB3_CA10,   CB2_CA10},
+    {1, CB1_CA9,    CB3_CA9,    CB2_CA9},
+    {1, CB1_CA8,    CB3_CA8,    CB2_CA8},
+    {1, CB1_CA7,    CB3_CA7,    CB2_CA7},
+    {1, CB1_CA6,    CB3_CA6,    CB2_CA6},
+    {1, CB1_CA5,    CB3_CA5,    CB2_CA5},
+    {1, CB1_CA4,    CB3_CA4,    CB2_CA4},
+    {1, CB1_CA3,    CB3_CA3,    CB2_CA3},
+    {1, CB1_CA2,    CB3_CA2,    CB2_CA2},
 
-    {1, J_13,   L_13,   K_13},
-    {1, J_14,   L_14,   K_14},
-    {1, J_15,   L_15,   K_15},
-    {1, G_16,   I_16,   H_16},
-    {1, G_15,   I_15,   H_15},
-    {1, G_13,   I_13,   H_13},
-    {1, G_12,   I_12,   H_12},
-    {1, G_11,   I_11,   H_11},
-    {1, G_10,   I_10,   H_10},
-    {1, G_9,    I_9,    H_9},
-    {1, G_8,    I_8,    H_8},
-    {1, G_7,    I_7,    H_7},
-    {1, G_6,    I_6,    H_6},
-    {1, G_5,    I_5,    H_5},
-    {1, G_4,    I_4,    H_4},
-    {1, G_3,    I_3,    H_3},
-    {1, G_2,    I_2,    H_2},
+    {1, CB10_CA13,  CB12_CA13,  CB11_CA13},
+    {1, CB10_CA14,  CB12_CA14,  CB11_CA14},
+    {1, CB10_CA15,  CB12_CA15,  CB11_CA15},
+    {1, CB7_CA16,   CB9_CA16,   CB8_CA16},
+    {1, CB7_CA15,   CB9_CA15,   CB8_CA15},
+    {1, CB7_CA13,   CB9_CA13,   CB8_CA13},
+    {1, CB7_CA12,   CB9_CA12,   CB8_CA12},
+    {1, CB7_CA11,   CB9_CA11,   CB8_CA11},
+    {1, CB7_CA10,   CB9_CA10,   CB8_CA10},
+    {1, CB7_CA9,    CB9_CA9,    CB8_CA9},
+    {1, CB7_CA8,    CB9_CA8,    CB8_CA8},
+    {1, CB7_CA7,    CB9_CA7,    CB8_CA7},
+    {1, CB7_CA6,    CB9_CA6,    CB8_CA6},
+    {1, CB7_CA5,    CB9_CA5,    CB8_CA5},
+    {1, CB7_CA4,    CB9_CA4,    CB8_CA4},
+    {1, CB7_CA3,    CB9_CA3,    CB8_CA3},
+    {1, CB7_CA2,    CB9_CA2,    CB8_CA2},
 
-    {1, J_16,   L_16,   K_16},
-    {1, D_16,   F_16,   E_16},
-    {1, D_15,   F_15,   E_15},
-    {1, D_14,   F_14,   E_14},
-    {1, D_13,   F_13,   E_13},
-    {1, D_9,    F_9,    E_9},
-    {1, D_6,    F_6,    E_6},
-    {1, D_5,    F_5,    E_5},
-    {1, D_4,    F_4,    E_4},
-    {1, D_3,    F_3,    E_3},
-    {1, D_2,    F_2,    E_2},
-    {1, D_1,    F_1,    E_1},
+    {1, CB10_CA16,  CB12_CA16,  CB11_CA16},
+    {1, CB4_CA16,   CB6_CA16,   CB5_CA16},
+    {1, CB4_CA15,   CB6_CA15,   CB5_CA15},
+    {1, CB4_CA14,   CB6_CA14,   CB5_CA14},
+    {1, CB4_CA13,   CB6_CA13,   CB5_CA13},
+    {1, CB4_CA9,    CB6_CA9,    CB5_CA9},
+    {1, CB4_CA6,    CB6_CA6,    CB5_CA6},
+    {1, CB4_CA5,    CB6_CA5,    CB5_CA5},
+    {1, CB4_CA4,    CB6_CA4,    CB5_CA4},
+    {1, CB4_CA3,    CB6_CA3,    CB5_CA3},
+    {1, CB4_CA2,    CB6_CA2,    CB5_CA2},
+    {1, CB4_CA1,    CB6_CA1,    CB5_CA1},
 };
 
 #define __ NO_LED
@@ -149,12 +148,12 @@ led_config_t g_led_config = {
     },
     {
         //  LED Index to Physical Position
-       			{10, 0}, {20, 0}, {30, 0},  {47, 0}, {62, 0}, {73, 0}, {84, 0}, {95, 0}, {110,0}, {120, 0}, {131, 0}, {142, 0}, {155, 0}, {166, 0}, {177,0},  {190, 0},  {205,0},  {224,0},
-		{0,15}, {10,15}, {20,15}, {30,15},  {47,15}, {58,15}, {69,15}, {80,15}, {91,15}, {102,15},{113,15}, {124,15}, {135,15}, {146,15}, {157,15}, {168,15}, {179,15},  {200,15}, {224,15},
-		{0,26}, {10,26}, {20,26}, {30,32},  {49,26}, {64,26}, {75,26}, {86,26}, {97,26}, {108,26},{119,26}, {130,26}, {141,26}, {152,26}, {163,26}, {174,26}, {185,26},  {205,26}, {224,26},
-		{0,38}, {10,38}, {20,38},           {52,38}, {68,38}, {79,38}, {90,38}, {101,38},{112,38},{123,38}, {134,38}, {145,38}, {156,38}, {167,38}, {178,38}, {197,38},            {224,38},
-		{0,49}, {10,49}, {20,49}, {30,55},  {55,49},          {73,49}, {84,49}, {95,49}, {106,49},{117,49}, {128,49}, {139,49}, {151,49}, {162,49}, {173,49}, {190,49},	 {210,51},
-		        {5,61},  {20,61},           {48,61}, {62,61}, {79,61},                            {117,61},                     {159,61}, {170,64}, {182,61}, {198,63},  {210,63}, {224,63}
+                {10, 0}, {20, 0}, {30, 0},  {47, 0}, {62, 0}, {73, 0}, {84, 0}, {95,  0}, {110, 0}, {120, 0}, {131, 0}, {142, 0}, {155, 0}, {166, 0}, {177, 0}, {190, 0}, {205, 0}, {224, 0},
+        {0,15}, {10,15}, {20,15}, {30,15},  {47,15}, {58,15}, {69,15}, {80,15}, {91, 15}, {102,15}, {113,15}, {124,15}, {135,15}, {146,15}, {157,15}, {168,15}, {179,15}, {200,15}, {224,15},
+        {0,26}, {10,26}, {20,26}, {30,32},  {49,26}, {64,26}, {75,26}, {86,26}, {97, 26}, {108,26}, {119,26}, {130,26}, {141,26}, {152,26}, {163,26}, {174,26}, {185,26}, {205,26}, {224,26},
+        {0,38}, {10,38}, {20,38},           {52,38}, {68,38}, {79,38}, {90,38}, {101,38}, {112,38}, {123,38}, {134,38}, {145,38}, {156,38}, {167,38}, {178,38}, {197,38},           {224,38},
+        {0,49}, {10,49}, {20,49}, {30,55},  {55,49},          {73,49}, {84,49}, {95, 49}, {106,49}, {117,49}, {128,49}, {139,49}, {151,49}, {162,49}, {173,49}, {198,49}, {205,51},
+        {5,61},          {20,61},           {48,61}, {62,61}, {79,61},                             {117,61},                     {159,61}, {170,64}, {182,61}, {198,63}, {205,63}, {224,63}
     },
     {
         // RGB LED Index to Flag
@@ -162,8 +161,32 @@ led_config_t g_led_config = {
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1,    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-           1, 1,    1, 1, 1,          1,       1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1,    1,    1, 1, 1,          1,       1, 1, 1, 1, 1, 1,
     }
+};
+
+// Default Color of Per Key RGB
+#define DC_RED {HSV_RED}
+#define DC_BLU {HSV_BLUE}
+#define DC_YLW {HSV_YELLOW}
+
+HSV default_per_key_led[RGB_MATRIX_LED_COUNT] = {
+            DC_YLW, DC_YLW, DC_YLW, DC_RED, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW,
+    DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_YLW, DC_YLW,
+    DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_YLW,
+    DC_YLW, DC_YLW, DC_YLW,         DC_YLW, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_RED, DC_YLW,
+    DC_YLW, DC_YLW, DC_YLW, DC_RED, DC_YLW,         DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_BLU, DC_YLW, DC_YLW,
+    DC_YLW,        DC_YLW,         DC_YLW, DC_YLW, DC_BLU,                          DC_BLU,                 DC_BLU, DC_YLW, DC_YLW, DC_YLW, DC_YLW, DC_YLW
+};
+
+// Default Mixed RGB Region
+uint8_t default_region[RGB_MATRIX_LED_COUNT] = {
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0,    0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,    0,    0, 0, 0,          0,       0, 0, 0, 0, 0, 0
 };
 #endif

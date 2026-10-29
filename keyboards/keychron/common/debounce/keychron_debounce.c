@@ -1,5 +1,5 @@
 
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2025 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -8,14 +8,15 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "keychron_debounce.h"
+#include "eeprom.h"
 #include "raw_hid.h"
 #include "quantum.h"
 #include "eeconfig.h"
@@ -37,7 +38,7 @@
 #endif
 
 #ifndef DEFAULT_DEBOUNCE_TYPE
-    #define DEFAULT_DEBOUNCE_TYPE DEBOUNCE_SYM_EAGER_PER_KEY
+#    define DEFAULT_DEBOUNCE_TYPE DEBOUNCE_SYM_EAGER_PER_KEY
 #endif
 
 #define DEBOUNCE_SET_QMK 0

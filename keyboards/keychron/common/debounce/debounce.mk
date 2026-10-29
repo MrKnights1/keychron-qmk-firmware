@@ -1,4 +1,4 @@
-DEBOUNCE_DIR = common/debounce
+DEBOUNCE_DIR = $(TOP_DIR)/keyboards/keychron/common/debounce
 SRC += \
      $(DEBOUNCE_DIR)/sym_defer_g.c \
      $(DEBOUNCE_DIR)/sym_defer_pr.c \
@@ -9,6 +9,6 @@ SRC += \
      $(DEBOUNCE_DIR)/none.c \
      $(DEBOUNCE_DIR)/keychron_debounce.c
 
-VPATH += $(TOP_DIR)/keyboards/keychron/$(DEBOUNCE_DIR)
+VPATH += $(DEBOUNCE_DIR)
 
 OPT_DEFS += -DDYNAMIC_DEBOUNCE_ENABLE

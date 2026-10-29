@@ -10,17 +10,27 @@
     },
     "features": {
         "bootmagic": true,
-        "extrakey" : true,
-        "mousekey" : true,
-        "dip_switch" : true,
-        "nkro" : true,
+        "extrakey": true,
+        "mousekey": true,
+        "dip_switch": true,
+        "encoder": true,
+        "encoder_map": true,
+        "nkro": true,
         "rgb_matrix": true,
-        "raw" : true,
+        "raw": true,
         "send_string": true
     },
     "diode_direction": "ROW2COL",
-    "dip_switch" :{
+    "dip_switch": {
         "pins": ["A8"]
+    },
+    "encoder": {
+        "rotary": [
+            {
+                "pin_a": "B15",
+                "pin_b": "B14"
+            }
+        ]
     },
     "rgb_matrix": {
         "driver": "snled27351_spi",

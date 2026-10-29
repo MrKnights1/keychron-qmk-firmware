@@ -1,4 +1,4 @@
-/* Copyright 2023 @ lokher (https://www.keychron.com)
+/* Copyright 2023 ~ 2025 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "quantum.h"
@@ -40,7 +40,13 @@ extern wt_func_t wireless_transport;
  * the anchor point of bluetooth interval. The bluetooth connection interval varies
  * if BLE is used, invoke report_buffer_set_inverval() to update the value
  */
+#if defined(LK_WIRELESS_ENABLE)
+#    define REPORT_BUFFER_RETRY_INTERVAL 2
 uint8_t report_interval = DEFAULT_2P4G_REPORT_INVERVAL_MS;
+#else
+#    define REPORT_BUFFER_RETRY_INTERVAL 7
+uint8_t report_interval = DEFAULT_BLE_REPORT_INVERVAL_MS;
+#endif
 
 static uint32_t report_timer_buffer = 0;
 uint32_t        retry_time_buffer   = 0;
@@ -54,7 +60,7 @@ void report_buffer_task(void);
 
 void report_buffer_init(void) {
     // Initialise the report queue
-    memset(&report_buffer_queue, 0, sizeof(report_buffer_queue));
+    //memset(&report_buffer_queue, 0, sizeof(report_buffer_queue));
     report_buffer_queue_head = 0;
     report_buffer_queue_tail = 0;
     retry                    = 0;
@@ -95,7 +101,6 @@ bool report_buffer_next_inverval(void) {
 }
 
 void report_buffer_set_inverval(uint8_t interval) {
-    // OG_TRACE("report_buffer_set_inverval: %d\n\r", interval);
     report_interval = interval;
 }
 
@@ -108,10 +113,11 @@ void report_buffer_set_retry(uint8_t times) {
 }
 
 void report_buffer_task(void) {
-    if (wireless_get_state() == WT_CONNECTED && (!report_buffer_is_empty() || retry) && report_buffer_next_inverval()) {
+    if ((wireless_get_state() == WT_CONNECTED || (wireless_get_state() == WT_PARING && is_wireless_pin_code_entry()) )
+    && (!report_buffer_is_empty() || retry) && report_buffer_next_inverval()) {
         bool pending_data = false;
 
-        if (!retry) {
+        if (retry == 0) {
             if (report_buffer_dequeue(&kb_rpt) && kb_rpt.type != REPORT_TYPE_NONE) {
                 if (timer_read32() > 2) {
                     pending_data      = true;
@@ -120,7 +126,7 @@ void report_buffer_task(void) {
                 }
             }
         } else {
-            if (timer_elapsed32(retry_time_buffer) > 2) {
+            if (timer_elapsed32(retry_time_buffer) > REPORT_BUFFER_RETRY_INTERVAL) {
                 pending_data = true;
                 --retry;
                 retry_time_buffer = timer_read32();

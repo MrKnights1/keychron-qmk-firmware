@@ -14,7 +14,7 @@ bool DIGITAL_RAIN(effect_params_t* params) {
     const uint8_t drop_ticks           = 28;
     const uint8_t pure_green_intensity = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
     const uint8_t max_brightness_boost = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
-    static uint8_t max_intensity = RGB_MATRIX_MAXIMUM_BRIGHTNESS;
+    uint8_t max_intensity        = rgb_matrix_config.hsv.v;
     const uint8_t decay_ticks          = 0xff / max_intensity;
 
     static uint8_t drop  = 0;

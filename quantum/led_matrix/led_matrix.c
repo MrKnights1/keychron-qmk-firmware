@@ -19,7 +19,6 @@
 
 #include "led_matrix.h"
 #include "progmem.h"
-#include "eeprom.h"
 #include "eeconfig.h"
 #include "keyboard.h"
 #include "sync_timer.h"
@@ -46,6 +45,9 @@ const led_point_t k_led_matrix_center = LED_MATRIX_CENTER;
 #define LED_MATRIX_CUSTOM_EFFECT_IMPLS
 
 #include "led_matrix_effects.inc"
+#ifdef COMMUNITY_MODULES_ENABLE
+#    include "led_matrix_community_modules.inc"
+#endif
 #ifdef LED_MATRIX_CUSTOM_KB
 #    include "led_matrix_kb.inc"
 #endif
@@ -61,6 +63,7 @@ const led_point_t k_led_matrix_center = LED_MATRIX_CENTER;
 #if defined(LED_MATRIX_BRIGHTNESS_TURN_OFF_VAL) && (LED_MATRIX_BRIGHTNESS_TURN_OFF_VAL >= LED_MATRIX_MAXIMUM_BRIGHTNESS)
 #    pragma error("LED_MATRIX_BRIGHTNESS_TURN_OFF_VAL must be less than LED_MATRIX_MAXIMUM_BRIGHTNESS")
 #endif
+
 // globals
 led_eeconfig_t led_matrix_eeconfig; // TODO: would like to prefix this with g_ for global consistancy, do this in another pr
 uint32_t       g_led_timer;
@@ -72,18 +75,17 @@ last_hit_t g_last_hit_tracker;
 #endif // LED_MATRIX_KEYREACTIVE_ENABLED
 
 // internals
-#ifdef LED_MATRIX_DRIVER_SHUTDOWN_ENABLE
-static bool driver_shutdown = false;
-#endif
 static bool            suspend_state     = false;
 static uint8_t         led_last_enable   = UINT8_MAX;
 static uint8_t         led_last_effect   = UINT8_MAX;
 static effect_params_t led_effect_params = {0, LED_FLAG_ALL, false};
 static led_task_states led_task_state    = SYNCING;
 #if LED_MATRIX_TIMEOUT > 0
-static uint32_t led_anykey_timer;
 static uint32_t led_matrix_timeout = LED_MATRIX_TIMEOUT;
 #endif // LED_MATRIX_TIMEOUT > 0
+#ifdef LED_MATRIX_DRIVER_SHUTDOWN_ENABLE
+static bool driver_shutdown = false;
+#endif
 
 // double buffers
 static uint32_t led_timer_buffer;
@@ -92,15 +94,15 @@ static last_hit_t last_hit_buffer;
 #endif // LED_MATRIX_KEYREACTIVE_ENABLED
 
 // split led matrix
-#if defined(LED_MATRIX_ENABLE) && defined(LED_MATRIX_SPLIT)
+#if defined(LED_MATRIX_SPLIT)
 const uint8_t k_led_matrix_split[2] = LED_MATRIX_SPLIT;
 #endif
 
-EECONFIG_DEBOUNCE_HELPER(led_matrix, EECONFIG_LED_MATRIX, led_matrix_eeconfig);
+EECONFIG_DEBOUNCE_HELPER(led_matrix, led_matrix_eeconfig);
 
 void led_matrix_increase_val_helper(bool write_to_eeprom);
 
-void eeconfig_update_led_matrix(void) {
+void eeconfig_force_flush_led_matrix(void) {
     eeconfig_flush_led_matrix(true);
 }
 
@@ -110,17 +112,31 @@ void eeconfig_update_led_matrix_default(void) {
     led_matrix_eeconfig.mode   = LED_MATRIX_DEFAULT_MODE;
     led_matrix_eeconfig.val    = LED_MATRIX_DEFAULT_VAL;
     led_matrix_eeconfig.speed  = LED_MATRIX_DEFAULT_SPD;
-    led_matrix_eeconfig.flags  = LED_FLAG_ALL;
+    led_matrix_eeconfig.flags  = LED_MATRIX_DEFAULT_FLAGS;
     eeconfig_flush_led_matrix(true);
 }
 
 void eeconfig_debug_led_matrix(void) {
     dprintf("led_matrix_eeconfig EEPROM\n");
     dprintf("led_matrix_eeconfig.enable = %d\n", led_matrix_eeconfig.enable);
+#ifdef LED_MATRIX_MODE_NAME_ENABLE
+    dprintf("led_matrix_eeconfig.mode = %d (%s)\n", led_matrix_eeconfig.mode, led_matrix_get_mode_name(led_matrix_eeconfig.mode));
+#else
     dprintf("led_matrix_eeconfig.mode = %d\n", led_matrix_eeconfig.mode);
+#endif // LED_MATRIX_MODE_NAME_ENABLE
     dprintf("led_matrix_eeconfig.val = %d\n", led_matrix_eeconfig.val);
     dprintf("led_matrix_eeconfig.speed = %d\n", led_matrix_eeconfig.speed);
     dprintf("led_matrix_eeconfig.flags = %d\n", led_matrix_eeconfig.flags);
+}
+
+void led_matrix_reload_from_eeprom(void) {
+    led_matrix_disable_noeeprom();
+    /* Reset back to what we have in eeprom */
+    eeconfig_init_led_matrix();
+    eeconfig_debug_led_matrix(); // display current eeprom values
+    if (led_matrix_eeconfig.enable) {
+        led_matrix_mode_noeeprom(led_matrix_eeconfig.mode);
+    }
 }
 
 __attribute__((weak)) uint8_t led_matrix_map_row_column_to_led_kb(uint8_t row, uint8_t column, uint8_t *led_i) {
@@ -141,15 +157,24 @@ void led_matrix_update_pwm_buffers(void) {
     led_matrix_driver.flush();
 }
 
+__attribute__((weak)) int led_matrix_led_index(int index) {
+#if defined(LED_MATRIX_SPLIT)
+    if (!is_keyboard_left() && index >= k_led_matrix_split[0]) {
+        return index - k_led_matrix_split[0];
+    }
+#endif
+    return index;
+}
+
 void led_matrix_set_value(int index, uint8_t value) {
 #ifdef USE_CIE1931_CURVE
     value = pgm_read_byte(&CIE1931_CURVE[value]);
 #endif
-    led_matrix_driver.set_value(index, value);
+    led_matrix_driver.set_value(led_matrix_led_index(index), value);
 }
 
 void led_matrix_set_value_all(uint8_t value) {
-#if defined(LED_MATRIX_ENABLE) && defined(LED_MATRIX_SPLIT)
+#if defined(LED_MATRIX_SPLIT)
     for (uint8_t i = 0; i < LED_MATRIX_LED_COUNT; i++)
         led_matrix_set_value(i, value);
 #else
@@ -161,13 +186,10 @@ void led_matrix_set_value_all(uint8_t value) {
 #endif
 }
 
-void process_led_matrix(uint8_t row, uint8_t col, bool pressed) {
+void led_matrix_handle_key_event(uint8_t row, uint8_t col, bool pressed) {
 #ifndef LED_MATRIX_SPLIT
     if (!is_keyboard_master()) return;
 #endif
-#if LED_MATRIX_TIMEOUT > 0
-    led_anykey_timer = 0;
-#endif // LED_MATRIX_TIMEOUT > 0
 
 #ifdef LED_MATRIX_KEYREACTIVE_ENABLED
     uint8_t led[LED_HITS_TO_REMEMBER];
@@ -227,21 +249,10 @@ static bool led_matrix_none(effect_params_t *params) {
 }
 
 static void led_task_timers(void) {
-#if defined(LED_MATRIX_KEYREACTIVE_ENABLED) || LED_MATRIX_TIMEOUT > 0
+#if defined(LED_MATRIX_KEYREACTIVE_ENABLED) || RGB_MATRIX_TIMEOUT > 0
     uint32_t deltaTime = sync_timer_elapsed32(led_timer_buffer);
-#endif // defined(LED_MATRIX_KEYREACTIVE_ENABLED) || LED_MATRIX_TIMEOUT > 0
+#endif // defined(LED_MATRIX_KEYREACTIVE_ENABLED)
     led_timer_buffer = sync_timer_read32();
-
-    // Update double buffer timers
-#if LED_MATRIX_TIMEOUT > 0
-    if (led_anykey_timer < UINT32_MAX) {
-        if (UINT32_MAX - deltaTime < led_anykey_timer) {
-            led_anykey_timer = UINT32_MAX;
-        } else {
-            led_anykey_timer += deltaTime;
-        }
-    }
-#endif // LED_MATRIX_TIMEOUT > 0
 
     // Update double buffer last hit timers
 #ifdef LED_MATRIX_KEYREACTIVE_ENABLED
@@ -300,6 +311,15 @@ static void led_task_render(uint8_t effect) {
 #include "led_matrix_effects.inc"
 #undef LED_MATRIX_EFFECT
 
+#ifdef COMMUNITY_MODULES_ENABLE
+#    define LED_MATRIX_EFFECT(name, ...)          \
+        case LED_MATRIX_COMMUNITY_MODULE_##name:  \
+            rendering = name(&led_effect_params); \
+            break;
+#    include "led_matrix_community_modules.inc"
+#    undef LED_MATRIX_EFFECT
+#endif
+
 #if defined(LED_MATRIX_CUSTOM_KB) || defined(LED_MATRIX_CUSTOM_USER)
 #    define LED_MATRIX_EFFECT(name, ...)          \
         case LED_MATRIX_CUSTOM_##name:            \
@@ -349,7 +369,6 @@ static void led_task_flush(uint8_t effect) {
         led_matrix_driver_shutdown();
     }
 #endif
-
     // next task
     led_task_state = SYNCING;
 }
@@ -361,8 +380,8 @@ void led_matrix_task(void) {
     // while suspended and just do a software shutdown. This is a cheap hack for now.
     bool suspend_backlight = suspend_state ||
 #if LED_MATRIX_TIMEOUT > 0
-                             (led_anykey_timer > led_matrix_timeout) ||
-#endif // led_matrix_timeout > 0
+                             (last_input_activity_elapsed() > led_matrix_timeout) ||
+#endif // LED_MATRIX_TIMEOUT > 0
                              false;
 
     uint8_t effect = suspend_backlight || !led_matrix_eeconfig.enable ? 0 : led_matrix_eeconfig.mode;
@@ -389,7 +408,12 @@ void led_matrix_task(void) {
     }
 }
 
+__attribute__((weak)) bool led_matrix_indicators_modules(void) {
+    return true;
+}
+
 void led_matrix_indicators(void) {
+    led_matrix_indicators_modules();
     led_matrix_indicators_kb();
 }
 
@@ -401,6 +425,10 @@ __attribute__((weak)) bool led_matrix_indicators_user(void) {
     return true;
 }
 
+__attribute__((weak)) bool led_matrix_indicators_advanced_modules(uint8_t led_min, uint8_t led_max) {
+    return true;
+}
+
 void led_matrix_indicators_advanced(effect_params_t *params) {
     /* special handling is needed for "params->iter", since it's already been incremented.
      * Could move the invocations to led_task_render, but then it's missing a few checks
@@ -408,6 +436,7 @@ void led_matrix_indicators_advanced(effect_params_t *params) {
      * led_task_render, right before the iter++ line.
      */
     LED_MATRIX_USE_LIMITS_ITER(min, max, params->iter - 1);
+    led_matrix_indicators_advanced_modules(min, max);
     led_matrix_indicators_advanced_kb(min, max);
 }
 
@@ -426,7 +455,6 @@ struct led_matrix_limits_t led_matrix_get_limits(uint8_t iter) {
     limits.led_min_index = LED_MATRIX_LED_PROCESS_LIMIT * (iter);
     limits.led_max_index = limits.led_min_index + LED_MATRIX_LED_PROCESS_LIMIT;
     if (limits.led_max_index > LED_MATRIX_LED_COUNT) limits.led_max_index = LED_MATRIX_LED_COUNT;
-    uint8_t k_led_matrix_split[2] = LED_MATRIX_SPLIT;
     if (is_keyboard_left() && (limits.led_max_index > k_led_matrix_split[0])) limits.led_max_index = k_led_matrix_split[0];
     if (!(is_keyboard_left()) && (limits.led_min_index < k_led_matrix_split[0])) limits.led_min_index = k_led_matrix_split[0];
 #    else
@@ -436,9 +464,8 @@ struct led_matrix_limits_t led_matrix_get_limits(uint8_t iter) {
 #    endif
 #else
 #    if defined(LED_MATRIX_SPLIT)
-    limits.led_min_index                = 0;
-    limits.led_max_index                = LED_MATRIX_LED_COUNT;
-    const uint8_t k_led_matrix_split[2] = LED_MATRIX_SPLIT;
+    limits.led_min_index = 0;
+    limits.led_max_index = LED_MATRIX_LED_COUNT;
     if (is_keyboard_left() && (limits.led_max_index > k_led_matrix_split[0])) limits.led_max_index = k_led_matrix_split[0];
     if (!(is_keyboard_left()) && (limits.led_min_index < k_led_matrix_split[0])) limits.led_min_index = k_led_matrix_split[0];
 #    else
@@ -464,12 +491,6 @@ void led_matrix_init(void) {
     }
 #endif // LED_MATRIX_KEYREACTIVE_ENABLED
 
-    if (!eeconfig_is_enabled()) {
-        dprintf("led_matrix_init_drivers eeconfig is not enabled.\n");
-        eeconfig_init();
-        eeconfig_update_led_matrix_default();
-    }
-
     eeconfig_init_led_matrix();
     if (!led_matrix_eeconfig.mode) {
         dprintf("led_matrix_init_drivers led_matrix_eeconfig.mode = 0. Write default values to EEPROM.\n");
@@ -479,7 +500,7 @@ void led_matrix_init(void) {
 }
 
 void led_matrix_set_suspend_state(bool state) {
-#ifdef LED_DISABLE_WHEN_USB_SUSPENDED
+#ifdef LED_MATRIX_SLEEP
     if (state && !suspend_state && is_keyboard_master()) { // only run if turning off, and only once
         led_task_render(0);                                // turn off all LEDs when suspending
         led_task_flush(0);                                 // and actually flash led state to LEDs
@@ -557,7 +578,11 @@ void led_matrix_mode_eeprom_helper(uint8_t mode, bool write_to_eeprom) {
     }
     led_task_state = STARTING;
     eeconfig_flag_led_matrix(write_to_eeprom);
-    dprintf("led matrix mode [%s]: %u\n", (write_to_eeprom) ? "EEPROM" : "NOEEPROM", led_matrix_eeconfig.mode);
+#ifdef LED_MATRIX_MODE_NAME_ENABLE
+    dprintf("led matrix mode [%s]: %u (%s)\n", (write_to_eeprom) ? "EEPROM" : "NOEEPROM", (unsigned)led_matrix_eeconfig.mode, led_matrix_get_mode_name(led_matrix_eeconfig.mode));
+#else
+    dprintf("led matrix mode [%s]: %u\n", (write_to_eeprom) ? "EEPROM" : "NOEEPROM", (unsigned)led_matrix_eeconfig.mode);
+#endif // LED_MATRIX_MODE_NAME_ENABLE
 }
 void led_matrix_mode_noeeprom(uint8_t mode) {
     led_matrix_mode_eeprom_helper(mode, false);
@@ -643,6 +668,9 @@ void led_matrix_decrease_val(void) {
 }
 
 void led_matrix_set_speed_eeprom_helper(uint8_t speed, bool write_to_eeprom) {
+    if (!led_matrix_eeconfig.enable) {
+        return;
+    }
     led_matrix_eeconfig.speed = speed;
     eeconfig_flag_led_matrix(write_to_eeprom);
     dprintf("led matrix set speed [%s]: %u\n", (write_to_eeprom) ? "EEPROM" : "NOEEPROM", led_matrix_eeconfig.speed);
@@ -700,12 +728,14 @@ void led_matrix_set_flags_noeeprom(led_flags_t flags) {
 void led_matrix_disable_timeout_set(uint32_t timeout) {
     led_matrix_timeout = timeout;
 }
+
 void led_matrix_disable_time_reset(void) {
-    led_anykey_timer = 0;
+    void last_matrix_activity_trigger(void);
+    last_matrix_activity_trigger();
 }
 
 bool led_matrix_timeouted(void) {
-    return led_anykey_timer > led_matrix_timeout;
+    return last_input_activity_elapsed() > led_matrix_timeout;
 }
 #endif
 
@@ -728,3 +758,48 @@ __attribute__((weak)) bool led_matrix_driver_allow_shutdown(void) {
     return true;
 };
 #endif
+
+// LED Matrix naming
+#undef LED_MATRIX_EFFECT
+#ifdef LED_MATRIX_MODE_NAME_ENABLE
+const char *led_matrix_get_mode_name(uint8_t mode) {
+    switch (mode) {
+        case LED_MATRIX_NONE:
+            return "NONE";
+
+#    define LED_MATRIX_EFFECT(name, ...) \
+        case LED_MATRIX_##name:          \
+            return #name;
+#    include "led_matrix_effects.inc"
+#    undef LED_MATRIX_EFFECT
+
+#    ifdef COMMUNITY_MODULES_ENABLE
+#        define LED_MATRIX_EFFECT(name, ...)         \
+            case LED_MATRIX_COMMUNITY_MODULE_##name: \
+                return #name;
+#        include "led_matrix_community_modules.inc"
+#        undef LED_MATRIX_EFFECT
+#    endif // COMMUNITY_MODULES_ENABLE
+
+#    if defined(LED_MATRIX_CUSTOM_KB) || defined(LED_MATRIX_CUSTOM_USER)
+#        define LED_MATRIX_EFFECT(name, ...) \
+            case LED_MATRIX_CUSTOM_##name:   \
+                return #name;
+
+#        ifdef LED_MATRIX_CUSTOM_KB
+#            include "led_matrix_kb.inc"
+#        endif // LED_MATRIX_CUSTOM_KB
+
+#        ifdef LED_MATRIX_CUSTOM_USER
+#            include "led_matrix_user.inc"
+#        endif // LED_MATRIX_CUSTOM_USER
+
+#        undef LED_MATRIX_EFFECT
+#    endif // LED_MATRIX_CUSTOM_KB || LED_MATRIX_CUSTOM_USER
+
+        default:
+            return "UNKNOWN";
+    }
+}
+#    undef LED_MATRIX_EFFECT
+#endif // LED_MATRIX_MODE_NAME_ENABLE

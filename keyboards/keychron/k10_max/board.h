@@ -1,4 +1,4 @@
-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+/* Copyright 2024 ~ 2026 @ Keychron (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -84,8 +84,8 @@
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN5) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOB_LSM303DLHC_SCL) |\
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN7) |       \
-                                     PIN_PUPDR_PULLDOWN(GPIOB_PIN8) |       \
-                                     PIN_PUPDR_PULLDOWN(GPIOB_LSM303DLHC_SDA) |\
+                                     PIN_PUPDR_PULLUP(GPIOB_PIN8) |       \
+                                     PIN_PUPDR_PULLUP(GPIOB_LSM303DLHC_SDA) |\
                                      PIN_PUPDR_PULLDOWN(GPIOB_MP45DT02_CLK_IN) |\
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN11) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN12) |      \
