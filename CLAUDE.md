@@ -50,7 +50,8 @@ Rapid-tap A/S/D keys when held (for smoother GTA V steering). Toggled with Fn+G.
 |------|---------|
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/keymap.c` | Custom keymap with spam macro |
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/pilot_remap.c` | Pilot mode remap by physical position: fixed arrows→numpad, web-bindable Q/E/Del/End/PgDn (VIA value IDs 23–27) |
-| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/config.h` | Board overrides, EEPROM datablock size/version, pilot key positions (`PILOT_POS_*`) |
+| `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/config.h` | EEPROM datablock size/version, pilot key positions (`PILOT_POS_*`) |
+| `users/spam_macro/post_config.h` | Board overrides of Keychron's Q3 Max config (read after every config.h) |
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/spam_config.c` | EEPROM struct defaults and validation |
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/modes.c` | Spam/pilot mode rules: mutually exclusive, Windows layers only |
 | `keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/rules.mk` | Build config (VIA enabled, output name) |
@@ -61,7 +62,7 @@ Rapid-tap A/S/D keys when held (for smoother GTA V steering). Toggled with Fn+G.
 
 ## Working on Top of Keychron's Code
 
-We never edit Keychron or QMK files. Everything of ours lives in `keymaps/spam_macro/`, `tests/keychron_spam_macro/`, `keychron-web/`, `keyboards/keychron/q3_max/firmware/` and this file, so Keychron updates merge without conflicts. `check_upstream_clean.sh` enforces it.
+We never edit Keychron or QMK files. Everything of ours lives in `keymaps/spam_macro/`, `users/spam_macro/`, `tests/keychron_spam_macro/`, `keychron-web/`, `keyboards/keychron/q3_max/firmware/` and this file, so Keychron updates merge without conflicts. `check_upstream_clean.sh` enforces it.
 
 **Updating to Keychron's latest:**
 ```bash
@@ -73,7 +74,8 @@ git submodule sync && git submodule update --init --recursive lib/chibios lib/ch
 ```
 Land it with a regular merge (`git merge --no-ff`), not a squash, so the link to Keychron's history is kept.
 
-**Board overrides** (keymap `config.h`, which first includes the board's `config.h` because Keychron headers `#include "config.h"` and pick up ours before the board's):
+**Board overrides** live in `users/spam_macro/post_config.h` (QMK picks `users/<keymap>/` by default and reads its `post_config.h` after every config.h). Not in keymap `config.h`: Keychron headers `#include "config.h"`, which finds the keymap's before the board's, so overrides there get redefined by the board:
+- `SNLED27351_PHASE_CHANNEL` 12 channels: Keychron's 2025q3 config scans 9, which leaves Tab..Del (LEDs 33-47, driver 0 CB10-CB12) dark.
 - `CAPS_LOCK_INDEX` 50: Keychron ships 51 (the A key's LED); Caps Lock `[3,0]` is LED 50 in `g_led_config`.
 - `RGB_MATRIX_DEFAULT_*`: solid #07fff0 after a reset.
 

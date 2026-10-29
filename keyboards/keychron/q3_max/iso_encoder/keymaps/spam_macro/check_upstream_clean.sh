@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 base=${1:-upstream/2025q3}
-ours='^(CLAUDE\.md|keychron-web/|tests/keychron_spam_macro/|keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/|keyboards/keychron/q3_max/firmware/)'
+ours='^(CLAUDE\.md|keychron-web/|tests/keychron_spam_macro/|users/spam_macro/|keyboards/keychron/q3_max/iso_encoder/keymaps/spam_macro/|keyboards/keychron/q3_max/firmware/)'
 
 # Committed, staged and unstaged changes. Submodule checkouts are ignored only in the working tree,
 # where a stale checkout is not a change we made; committed or staged pin changes still count.

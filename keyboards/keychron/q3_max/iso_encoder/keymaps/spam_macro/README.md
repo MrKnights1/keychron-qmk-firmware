@@ -125,7 +125,7 @@ The compiled `.bin` will be at `.build/keychron_q3max_custom.bin`.
 
 ### Syncing with Keychron Updates
 
-This firmware sits on Keychron's `2025q3` branch (their main). None of Keychron's files are edited: everything of ours lives in this keymap folder, `tests/keychron_spam_macro/`, `keychron-web/` and `keyboards/keychron/q3_max/firmware/`. Keychron updates therefore merge without conflicts:
+This firmware sits on Keychron's `2025q3` branch (their main). None of Keychron's files are edited: everything of ours lives in this keymap folder, `users/spam_macro/`, `tests/keychron_spam_macro/`, `keychron-web/` and `keyboards/keychron/q3_max/firmware/`. Keychron updates therefore merge without conflicts:
 
 ```bash
 git remote add upstream https://github.com/Keychron/qmk_firmware.git   # once
@@ -165,10 +165,11 @@ cd keychron-web && bun test
 
 ## Board Overrides
 
-Fixes for Keychron's Q3 Max ISO code live in this keymap's `config.h` instead of edits to Keychron's files:
+Fixes for Keychron's Q3 Max ISO code live in `users/spam_macro/post_config.h` (read after every `config.h`) instead of edits to Keychron's files:
 
 | Setting | Value | Why |
 |---------|-------|-----|
+| `SNLED27351_PHASE_CHANNEL` | 12 channels | Keychron's config scans 9, which leaves the Tab to Del row dark |
 | `CAPS_LOCK_INDEX` | 50 | Keychron ships 51, which lights the A key; Caps Lock `[3,0]` is LED 50 |
 | `RGB_MATRIX_DEFAULT_*` | solid #07fff0 | Default backlight after a reset |
 
@@ -208,9 +209,10 @@ keyboards/keychron/q3_max/
 └── iso_encoder/keymaps/spam_macro/
     ├── keymap.c                                     # Layers, spam macro, VIA values, LED indicators
     ├── pilot_remap.c / spam_config.c / modes.c      # Pilot remap, saved settings, mode rules
-    ├── config.h                                     # Board overrides, EEPROM size, pilot key positions
+    ├── config.h                                     # EEPROM size, pilot key positions
     ├── rules.mk                                     # Build config (VIA enabled, output name)
     └── check_upstream_clean.sh                      # Fails if Keychron's files were edited
+users/spam_macro/post_config.h                      # Board overrides (LED scan, Caps Lock LED, default colour)
 tests/keychron_spam_macro/                           # Firmware unit tests
 keychron-web/                                        # Web configurator and flasher
 ```

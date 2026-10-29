@@ -1,22 +1,6 @@
 #pragma once
 
-// Board overrides. Keychron headers #include "config.h", which resolves to this file before the board's
-// config.h is read, so pull the board's in first; the redefinitions below then win in either order.
-#include "../../config.h"
-
-// Keychron ships 51 (the A key); Caps Lock [3,0] is LED 50 in g_led_config.
-#undef CAPS_LOCK_INDEX
-#define CAPS_LOCK_INDEX 50
-
-// Default backlight after a reset: solid #07fff0.
-#undef RGB_MATRIX_DEFAULT_MODE
-#define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_SOLID_COLOR
-#undef RGB_MATRIX_DEFAULT_HUE
-#define RGB_MATRIX_DEFAULT_HUE 125
-#undef RGB_MATRIX_DEFAULT_SAT
-#define RGB_MATRIX_DEFAULT_SAT 249
-#undef RGB_MATRIX_DEFAULT_VAL
-#define RGB_MATRIX_DEFAULT_VAL 255
+// Board overrides live in users/spam_macro/post_config.h, which QMK reads after every config.h.
 
 // Spam macro settings live in QMK's keymap EEPROM datablock; the size must equal sizeof(spam_macro_config_t).
 // Bump the version whenever that struct's layout changes: QMK then treats the stored block as invalid.
