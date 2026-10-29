@@ -124,7 +124,8 @@ static void spam_macro_init(void) {
     spam_macro_config_t cfg;
     eeconfig_read_user_datablock(&cfg, 0, sizeof(cfg));
 
-    if (spam_config_load(&cfg) != SPAM_CONFIG_CURRENT) {
+    // QMK hands back zeros when the stored version stamp doesn't match, which fails validation.
+    if (!spam_config_load(&cfg)) {
         eeconfig_update_user_datablock(&cfg, 0, sizeof(cfg));
     }
 
@@ -173,7 +174,6 @@ static void spam_macro_save(void) {
         .pilot_toggle_col  = (uint8_t)pilot_toggle_col,
         .spam_led_r = (uint8_t)spam_led_r, .spam_led_g = (uint8_t)spam_led_g, .spam_led_b = (uint8_t)spam_led_b,
         .pilot_led_r = (uint8_t)pilot_led_r, .pilot_led_g = (uint8_t)pilot_led_g, .pilot_led_b = (uint8_t)pilot_led_b,
-        .version           = SPAM_MACRO_CONFIG_VERSION,
     };
     for (uint8_t i = 0; i < PILOT_BIND_COUNT; i++) {
         cfg.pilot_binds[i] = pilot_remap_get_binding(i);

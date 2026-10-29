@@ -18,8 +18,11 @@
 #undef RGB_MATRIX_DEFAULT_VAL
 #define RGB_MATRIX_DEFAULT_VAL 255
 
-// Spam macro settings live in QMK's keymap EEPROM datablock; must equal sizeof(spam_macro_config_t).
-#define EECONFIG_USER_DATA_SIZE 37
+// Spam macro settings live in QMK's keymap EEPROM datablock; the size must equal sizeof(spam_macro_config_t).
+// Bump the version whenever that struct's layout changes: QMK then treats the stored block as invalid.
+#define SPAM_MACRO_CONFIG_VERSION 1
+#define EECONFIG_USER_DATA_SIZE 36
+#define EECONFIG_USER_DATA_VERSION SPAM_MACRO_CONFIG_VERSION
 
 // Pilot-mode keys by matrix position (see keyboard.json).
 #define PILOT_POS_Q     {.col = 1, .row = 2}
